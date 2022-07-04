@@ -1,0 +1,40 @@
+## Python compile files
+*.pyc
+
+## Core latex/pdflatex/build-tool auxiliary files:
+*.aux
+*.bit
+*.blg
+*.bbl
+*.lof
+*.log
+*.lot
+*.glo
+*.glx
+*.gxg
+*.gxs
+*.idx
+*.ilg
+*.ind
+*.out
+*.url
+*.svn
+*.toc
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+## Bibliography auxiliary files (bibtex/biblatex/biber):
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+
+.idea/
+data/

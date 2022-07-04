@@ -1,24 +1,15 @@
 import matplotlib
-matplotlib.use('Agg')
 import numpy
 import pylab
-import timeit
-import scipy.linalg
-import datetime
-import shutil, os, sys, subprocess
-import logging
-import copy
-from scipy import stats
-import shelve
-
+import os, sys, datetime, shutil, logging, timeit, copy
 import mdp
-#from enthought.mayavi import mlab
+import scipy.linalg
 
 from sem_utils import *
 from sem_recorder import *
 from sem_input import *
-#from sem import *
 
+# Parameters of class SEMLiquid()
 class SEMLiquidParams(object):
     def __init__(self, task, **kwds):
         # random seed
@@ -193,47 +184,9 @@ class SEMLiquidParams(object):
                 self.inpgen = EmbeddedPatternInputGenerator(self.inpgen_seq, tNoiseRange=self.tNoiseRange, prob=self.nprob)
             else:
                 self.inpgen = self.inpgen_seq
-        elif self.task == 'multi':
-            self.inpgen = RateInputGenerator(self.nInputs, self.dt, self.tau_multiple*self.tau_multi, self.tau,
-                self.nInputGroups, self.in_rate_lims)
-        elif self.task == 'xor':
-            inpgen1 = SequentialPatternInputGenerator(self.nInputs/2, self.dt, self.rin,
-                self.nPatterns, self.tPattern, self.pattern_sequences, self.rNoise, self.pattern_mode, self.sprob)
-            inpgen2 = SequentialPatternInputGenerator(self.nInputs-self.nInputs/2, self.dt, self.rin,
-                self.nPatterns, self.tPattern, self.pattern_sequences, self.rNoise, self.pattern_mode, self.sprob)
-            self.inpgen = CombinedInputGenerator([inpgen1,inpgen2])
-        elif self.task == 'speech':
-            # use only a part of the utterances for training
-            tmp = numpy.random.permutation(10)[:1].tolist()
-            tmp = [1,2,5,6,7][numpy.random.randint(5)]
-            if self.digits is None:
-                self.digits = numpy.random.permutation(10)[:2].tolist()
-            if self.speakers is None:
-                self.speakers = numpy.take([1,2,5,6,7], numpy.random.permutation(5)[:1])
-            self.inpgen_speech = PreprocessedSpeechInputGenerator(self.nInputs, self.dt, self.rin, self.rNoise,
-                scale=50, poisson=False, digits=self.digits, rev_digits=self.rev_digits, utterances=self.utterances[:7],
-                speakers=self.speakers, sprob=self.sprob)
-            if self.embedded:
-                self.inpgen = EmbeddedPatternInputGenerator(self.inpgen_speech, tNoiseRange=self.tNoiseRange,
-                    prob=self.nprob)
-            else:
-                self.inpgen = self.inpgen_speech
-        elif self.task == 'xor_pattern':
-            inpgen1 = SequentialPatternInputGenerator(self.nInputs/2, self.dt, self.rin,
-                self.nPatterns, self.tPattern[:self.nPatterns], self.pattern_sequences[0], self.rNoise, self.pattern_mode, self.sprob)
-            inpgen2 = SequentialPatternInputGenerator(self.nInputs-self.nInputs/2, self.dt, self.rin,
-                self.nPatterns, self.tPattern[:self.nPatterns], self.pattern_sequences[0], self.rNoise, self.pattern_mode, self.sprob)
-            self.inpgen_xor = CombinedInputGenerator([inpgen1,inpgen2])
-            self.inpgen_seq = SequentialPatternInputGenerator(self.nInputs, self.dt, self.rin,
-                self.nPatterns, self.tPattern[self.nPatterns:], self.pattern_sequences[1], self.rNoise, self.pattern_mode, self.sprob)
-            if self.embedded:
-                self.inpgen_pat = EmbeddedPatternInputGenerator(self.inpgen_seq, tNoiseRange=self.tNoiseRange, prob=self.nprob)
-            else:
-                self.inpgen_pat = self.inpgen_seq
-            self.inpgen = SwitchableInputGenerator([self.inpgen_xor, self.inpgen_pat])
 
         # create input generator for testing
-        self.test_inpgen = copy.deepcopy(self.inpgen) # deepcopy is used here because python just creates a binding between object and target when assignments are used
+        self.test_inpgen = copy.deepcopy(self.inpgen)
         if self.task=='pattern':
             # for testing, always switch through patterns
             if self.embedded:
@@ -246,17 +199,6 @@ class SEMLiquidParams(object):
                 self.test_inpgen.pattern_sequences = self.test_pattern_sequences
                 self.test_inpgen.mode = 'alternating'
                 self.test_inpgen.sprob = 1.0
-                self.test_inpgen.time_warp_range = self.test_time_warp_range
-        elif self.task == 'speech':
-            # use remaining utterances for testing
-            if self.embedded:
-                self.test_inpgen.inpgen.sprob = 1.0
-                self.test_inpgen.inpgen.utterances = self.utterances[7:]
-                self.test_inpgen.tNoiseRange = self.test_tNoiseRange
-                self.test_inpgen.inpgen.time_warp_range = self.test_time_warp_range
-            else:
-                self.test_inpgen.sprob = 1.0
-                self.test_inpgen.utterances = self.utterances[7:]
                 self.test_inpgen.time_warp_range = self.test_time_warp_range
 
 class SEMLiquid(object):
@@ -353,7 +295,7 @@ class SEMLiquid(object):
         self.plot_weights = False
 
         self.filename = 'sem_liquid_v2.py'
-        self.outputdir = os.environ["PWD"] + '/data/'
+        self.outputdir = os.environ["PWD"] + '/data/SEM/simulations/'
         if hasattr(datetime,'today'):
             today = datetime.today()
         else:
@@ -834,9 +776,6 @@ class SEMLiquid(object):
             assert(weighted_rates_max_time2.shape == (self.tsize,))
             order2 = numpy.argsort(weighted_rates_max_time2)
             times2 = pt2+weighted_rates_max_time2[order2]
-        else:
-            Tord = numpy.arange(pt,pt).astype(int)
-            Tord2 = numpy.arange(pt2,pt2).astype(int)
         return order,times,Tord,order2,times2,Tord2
 
     def simulate(self, Tsim, titlestr="learning", savestrprefix="sem_liquid_train", do_plot=True):
@@ -1264,13 +1203,13 @@ class SEMLiquid(object):
         nsteps = (int)(Tsim/self.dt)
         print "\n%s..." % (titlestr)
         logging.debug("%s...\n" % (titlestr))
-        Y = [[] for i in range(self.nInputs)] # create [[], [], ..., []] (nInputs-times)
-        Z = [[] for i in range(self.tsize)] # create [[], [], ..., []] (tsize-times)
-        ZR = [[] for i in range(self.nReadouts)] # create [[], [], ..., []] (nReadouts-times)
+        Y = [[] for i in range(self.nInputs)]
+        Z = [[] for i in range(self.tsize)]
+        ZR = [[] for i in range(self.nReadouts)]
         I = []
         Is = []
         I2 = []
-        r = numpy.zeros((nsteps,self.tsize)) # create a nsteps x tsize matrix
+        r = numpy.zeros((nsteps,self.tsize))
         ri = numpy.zeros((nsteps,self.nInputs))
         X = numpy.zeros((nsteps,self.tsize))
         Xs = numpy.zeros((nsteps,self.nInputs))
@@ -1304,7 +1243,7 @@ class SEMLiquid(object):
                 time = timeit.default_timer() - start_time
                 printf('\rtesting step %d/%d (%d%%) ETA %s...' % ((step+1)/self.dt_out,
                     nsteps/self.dt_out, ratio*100, format_time((1.0/ratio - 1)*time)))
-            for i in numpy.where(x)[0]: # mpy.where(x)[0] returns the first index where x is True
+            for i in numpy.where(x)[0]:
                 Y[i].append(step)
             for i in numpy.where(self.Z[:self.tsize])[0]:
                 Z[i].append(step)
@@ -1600,103 +1539,6 @@ class SEMLiquid(object):
         pylab.title("histogram of input weights")
         self.save_figure(self.outputdir+'%s_inpwhist.%s' % (savestrprefix,self.ext))
 
-def sem_liquid_speech(seed=None, *p):
-    strain = 10
-    stest_train = 10
-    stest = 3
-    params = SEMLiquidParams('speech', nInputs=200, pattern_mode='random_switching', sprob=0.5,
-        tNoiseRange=[100e-3, 500e-3], test_tNoiseRange=[100e-3, 300e-3], rin=5, rNoise=2, nReadouts=4,
-        digits=[1,2], speakers=[2], use_priors=False, size=(10,5), size_lims=[2,10], seed=seed,
-        frac_tau_DS=10, use_dynamic_synapses=True, use_entropy_regularization=False,
-        time_warp_range=(3.,3.), test_time_warp_range=(3.,3.))
-    liquid = SEMLiquid(params)
-    liquid.isppt = False
-    liquid.ext = 'pdf'
-    num_train_periods = 10
-    num_test_periods = 1
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain)
-
-    for itest in range(num_train_periods):
-        liquid.simulate(strain, titlestr="training phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
-        states = []
-        ids = []
-        test_titlestr = "response to unseen test utterances after %ds training" % ((itest+1)*strain)
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest+1), plot_readout_spikes=False, train_readouts=True, do_plot=False)
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(4*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(4*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-
-        liquid.test_inpgen.inpgen.noise_period=(100,200)
-        for itest_comp in range(num_test_periods):
-            X,I,perf = liquid.test(stest, 0, titlestr=test_titlestr,
-                savestrprefix="sem_liquid_test%d_inpmod1"%(itest_comp+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.test_inpgen.inpgen.noise_period=None
-        liquid.test_inpgen.inpgen.mixed=True
-        for itest_comp in range(num_test_periods):
-            X,I,perf = liquid.test(stest, 0, titlestr=test_titlestr,
-                savestrprefix="sem_liquid_test%d_inpmod2"%(itest_comp+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.test_inpgen.inpgen.mixed=False
-    #states = numpy.concatenate(states)
-    #ids = numpy.concatenate(ids)
-    #liquid.trainPCA(states)
-    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    #liquid.plot_weight_distribution()
-    #liquid.plotPerformance(test_times, savestrprefix="sem_liquid_test")
-    if liquid.ext=='pdf' and len(liquid.figurelist)>0:
-        liquid.concatenate_pdf(delete=True)
-    if len(liquid.figurelist)>0:
-        pylab.close('all')
-    pylab.close('all')
-    return liquid, test_times
-
-def sem_liquid_pattern2(seed=None, *p):
-    strain = 100
-    stest_train = 3
-    stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_ind', sprob=[0.8, 0.2], nPatterns=3,
-        use_priors=False, tPattern=[200e-3]*3, pattern_sequences=[[0,1],[0,1]], test_time_warp_range=(1.,1.),
-        test_pattern_sequences=[[1],[0,1],[0]], tNoiseRange=[300e-3, 500e-3], test_tNoiseRange=[300e-3, 800e-3],
-        seed=seed, frac_tau_DS=10, size=(10,5), size_lims=[2,10], use_dynamic_synapses=True,
-        use_entropy_regularization=False, plot_order_states=True, swap_order=True)
-    liquid = SEMLiquid(params)
-    num_train_periods = 1
-    num_test_periods = 10
-    liquid.ext = 'pdf'
-    liquid.sub_neurons = 4
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain)
-
-    itest=-1
-    liquid.simulate(strain, titlestr="training phase #%d" %(itest+1),
-        savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
-    states = []
-    ids = []
-    for itest in range(num_train_periods):
-        test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
-        X,I,perf = liquid.test(stest_train, itest, titlestr=test_titlestr, #titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
-        for itest2 in range(num_test_periods):
-            X,I,perf = liquid.test(stest, itest2, titlestr=test_titlestr,
-                savestrprefix="sem_liquid_test%d_inp"%(itest2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-            states.append(X)
-            ids.append(I)
-    #states = numpy.concatenate(states)
-    #ids = numpy.concatenate(ids)
-    #liquid.trainPCA(states)
-    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    pylab.close('all')
-    return liquid, test_times
-
-# returns liquid computing model and test times for a given seed (seed) and a number of parameters (*p)
 def sem_liquid_pattern1(seed=None, *p):
     strain = 100  # training set length (seconds)
     # strain = 10
@@ -1714,499 +1556,65 @@ def sem_liquid_pattern1(seed=None, *p):
     num_train_periods = 1
     num_test_periods = 10
     num_trial_periods = 100
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain) # aka test_times = [0]
-
-    itest = 0
-    test_titlestr = "response to patterns before training"
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
-
-    for itest in range(1,num_train_periods+1):
-        liquid.simulate(strain, titlestr="/simulating phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
-        states = []
-        ids = []
-        test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
-    for itest in range(1,num_test_periods):
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    for itest in range(num_trial_periods):
-        X,I,perf = liquid.test(stest, itest, titlestr="Trial #%d"%(itest),
-            savestrprefix="sem_liquid_trials%d"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    #states = numpy.concatenate(states)
-    #ids = numpy.concatenate(ids)
-    #liquid.trainPCA(states)
-    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    #liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    #pylab.show()
-    pylab.close('all')
-    return liquid, test_times
-
-def sem_liquid_pattern12(seed=None, *p):
-    strain = 5
-    #stest_train = 3
-    stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=2, rin=5,
-        tPattern=[300e-3]*2, use_priors=False, plot_order_states=True, frac_tau_DS=5, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=False, eta=5e1,
-        use_entropy_regularization=False, pattern_sequences=[[0],[1]], test_pattern_sequences=[[0],[1]], seed=seed, size=(5,5),
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 1000e-3], size_lims=[2,25], test_time_warp_range=(1.,1.))
-    liquid = SEMLiquid(params)
-    liquid.order_states2 = False
-    liquid.sub_neurons = 4
-    liquid.isppt = True
-    liquid.ext = 'pdf'
-    liquid.initialize_random_weights()
-    num_train_periods = 15
-    num_test_periods = 100
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain)
-    #pylab.show()
-    #return
-
-    itest = 0
-    test_titlestr = "response to patterns before training"
-    #liquid.use_inputs = False
-    X,I,perf = liquid.test(stest, 2*itest, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test%d0_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test%d1_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    #liquid.use_inputs = True
-    liquid.test_inpgen.tNoiseRange = [5000e-3, 5000e-3]
-    X,I,perf = liquid.test(stest, 2*itest, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test%d2_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test%d3_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    liquid.test_inpgen.tNoiseRange = [300e-3, 1000e-3]
-
-    for itest in range(1,num_train_periods+1):
-        liquid.simulate(strain, titlestr="training phase #%d" %(itest),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
-        test_titlestr = "response to patterns after %ds training" % ((itest)*strain)
-        #liquid.use_inputs = False
-        X,I,perf = liquid.test(stest, 2*itest, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d0_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d1_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.test_inpgen.tNoiseRange = [5000e-3, 5000e-3]
-        X,I,perf = liquid.test(stest, 2*itest, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d2_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d3_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.test_inpgen.tNoiseRange = [300e-3, 1000e-3]
-        #liquid.use_inputs = True
-
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    for itest in range(num_test_periods):
-        X,I,perf = liquid.test(stest, itest, titlestr="Trial #%d"%(itest),
-            savestrprefix="sem_liquid_trials%d"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=False, do_save=True)
-    #liquid.test_inpgen.tNoiseRange = [5000e-3, 5000e-3]
-    #for itest in range(num_test_periods):
-    #    X,I,perf = liquid.test(stest, itest, titlestr="Trial #%d"%(itest),
-    #        savestrprefix="sem_liquid_trials_spont%d"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    if liquid.ext=='pdf' and len(liquid.figurelist)>0:
-        liquid.concatenate_pdf(delete=True)
-    if len(liquid.figurelist)>0:
-        pylab.close('all')
-    #pylab.close('all')
-    return liquid, test_times
-
-# newly created for replicating figure 4A
-def sem_liquid_pattern4A(seed=None, *p):
-    strain = 100  # training set length (seconds)
-    # strain = 10
-    stest_train = 3
-    stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=1, rin=5,
-        tPattern=[300e-3]*1, use_priors=False, plot_order_states=False, frac_tau_DS=10, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=True,# eta=1e-4,
-        use_entropy_regularization=False, pattern_sequences=[[0],[0]], test_pattern_sequences=[[0],[0]], seed=seed, size=(5,4), pConn=1.0,
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 800e-3], size_lims=[2,10], test_time_warp_range=(0.5,2.))
-    liquid = SEMLiquid(params)
-    liquid.order_states2 = False
-    liquid.sub_neurons = 4
-    liquid.isppt = True
-    liquid.ext = 'pdf'
-    num_train_periods = 1
-    num_test_periods = 10
-    num_trial_periods = 100
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain) # aka test_times = [0]
-
-    itest = 0
-    test_titlestr = "response to patterns before training" # test_titlestr = "initial response"
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    X,I,perf = liquid.test(stest, itest, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
-
-    for itest in range(1,num_train_periods+1):
-        liquid.simulate(strain, titlestr="training/simulating phase #%d" %(itest),
-            savestrprefix="sem_liquid_train%d" % (itest), do_plot=False)
-        test_titlestr = "response to patterns after %ds training/simulation" % ((itest)*strain)
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest)*strain),
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
-    for itest in range(1,num_test_periods):
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-
-    # trials differ from training in their time warping
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    for itest in range(num_trial_periods):
-        X,I,perf = liquid.test(stest, itest, titlestr="Trial #%d"%(itest),
-            savestrprefix="sem_liquid_trials%d"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    #states = numpy.concatenate(states)
-    #ids = numpy.concatenate(ids)
-    #liquid.trainPCA(states)
-    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    #liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    #pylab.show()
-    pylab.close('all')
-    return liquid, test_times
-
-# newly created for replicating figure 5
-def sem_liquid_pattern5A(seed=None, *p):
-    strain = 100  # training set length (seconds)
-    # strain = 10
-    stest_train = 3
-    stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=1, rin=5,
-        tPattern=[300e-3]*1, use_priors=False, plot_order_states=False, frac_tau_DS=10, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=True,# eta=1e-4,
-        use_entropy_regularization=False, pattern_sequences=[[0],[0]], test_pattern_sequences=[[0],[0]], seed=seed, size=(5,4), pConn=1.0,
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 800e-3], size_lims=[2,10], test_time_warp_range=(0.5,2.))
-    liquid = SEMLiquid(params)
-    liquid.order_states2 = False
-    liquid.sub_neurons = 4
-    liquid.isppt = True
-    liquid.ext = 'pdf'
-    num_train_periods = 1
-    num_test_periods = 10
-    num_trial_periods = 100
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain) # aka test_times = [0]
-
-    itest = 0
-    test_titlestr = "response to patterns before training"
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
-
-    for itest in range(1,num_train_periods+1):
-        liquid.simulate(strain, titlestr="/simulating phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True)
-        states = []
-        ids = []
-        test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-            savestrprefix="sem_liquid_train%d_test_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
-    for itest in range(1,num_test_periods):
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    for itest in range(num_trial_periods):
-        X,I,perf = liquid.test(stest, itest, titlestr="Trial #%d"%(itest),
-            savestrprefix="sem_liquid_trials%d"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    #states = numpy.concatenate(states)
-    #ids = numpy.concatenate(ids)
-    #liquid.trainPCA(states)
-    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    #liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    #pylab.show()
-    pylab.close('all')
-    return liquid, test_times
-
-def sem_liquid_fail(seed=None):
-    strain = 50
-    stest_train = 3
-    stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=1.0, nPatterns=2,
-        tPattern=[300e-3]*2, tNoiseRange=[300e-3,600e-3], use_priors=False, plot_order_states=False, frac_tau_DS=10,
-        use_dynamic_synapses=False, use_entropy_regularization=False, pattern_sequences=[[0],[1]], seed=seed, size=(5,5))
-    liquid = SEMLiquid(params)
-    liquid.order_states = False
-    liquid.isppt = True
-    liquid.ext = 'eps'
-    num_train_periods = 1
     test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain)
 
-    for itest in range(num_train_periods):
+    itest = 0
+    test_titlestr = "response to patterns before training"
+    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
+    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
+        savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
+        savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
+
+    for itest in range(1,num_train_periods+1):
         liquid.simulate(strain, titlestr="training phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True)
+            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
         states = []
         ids = []
         test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
         X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True)
+            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
+    for itest in range(1,num_test_periods):
         X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True)
-        states.append(X)
-        ids.append(I)
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True)
-        #X,I,perf = liquid.test(stest, itest, titlestr="readout test phase after %ds training" % ((itest+1)*strain),
-            #savestrprefix="sem_liquid_test%d_inp"%(itest+1), plot_readout_spikes=True, train_readouts=False)
-        states.append(X)
-        ids.append(I)
-    states = numpy.concatenate(states)
-    ids = numpy.concatenate(ids)
-    liquid.trainPCA(states)
-    liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    #pylab.show()
-    pylab.close('all')
-    return liquid, test_times
-
-def sem_liquid_multi(seed=None):
-    stest_train = 50
-    stest = 3
-    params = SEMLiquidParams(task='multi', nInputs=4, use_priors=False, train_fraction=0.0, size=(5,5),
-        size_lims=[2,25], in_rate_lims=(10,40), nInputGroups=2, seed=seed, use_multiple_synapses=False,
-        use_dynamic_synapses=True, tau=20e-3,
-        tau_multi=20e-3, tau_multiple=5, pConn=0.0, frac_tau_DS=10)#,
-        #nconn=10000, dt_rec_spk=stest*1000, nstepsrec=stest*1000)
-    liquid = SEMLiquid(params)
-    liquid.sub_neurons = 2
-    liquid.sub_neurons_input = 1
-    liquid.isppt = False
-    num_train_periods = 1
-    test_times = []
-
-    #pylab.show()
-    #raw_input()
-
-    for itest in range(num_train_periods):
-        #liquid.simulate(strain, titlestr="training phase #%d" %(itest+1),
-            #savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True)
-        states = []
-        ids = []
-        test_titlestr = "test response"
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase",
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=False)
-        #print numpy.random.rand()
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True)
-        states.append(X)
-        ids.append(I)
-        #print numpy.random.rand()
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True)
-        #X,I,perf = liquid.test(stest, itest, titlestr="readout test phase after %ds training" % ((itest+1)*strain),
-            #savestrprefix="sem_liquid_test%d_inp"%(itest+1), plot_readout_spikes=True, train_readouts=False)
-        states.append(X)
-        ids.append(I)
-        #print numpy.random.rand()
-    states = numpy.concatenate(states)
-    ids = numpy.concatenate(ids)
-    liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    pylab.close('all')
-    return liquid, test_times
-
-def sem_liquid_xor(seed=None, pConn=1.0):
-    stest_train = 50
-    stest = 3
-    params = SEMLiquidParams(task='xor', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=2, rin=5,
-        use_priors=False, tPattern=[50e-3]*2, seed=seed, frac_tau_DS=10, train_fraction=0.0, embedded=False,
-        pattern_sequences=[[0],[1]], test_pattern_sequences=[[0],[1]], pConn=1.0, rNoise=2,
-        size=(5,5), size_lims=[2,25], use_dynamic_synapses=True, use_entropy_regularization=False)#,
-        #nconn=10000, dt_rec_spk=stest*1000, nstepsrec=stest*1000)
-    liquid = SEMLiquid(params)
-    liquid.sub_neurons = 1
-    liquid.sub_neurons_input = 1
-    liquid.isppt = False
-    num_train_periods = 1
-    test_times = []
-
-    #pylab.show()
-    #raw_input()
-
-    for itest in range(num_train_periods):
-        #liquid.simulate(strain, titlestr="training phase #%d" %(itest+1),
-            #savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True)
-        states = []
-        ids = []
-        test_titlestr = "test response"
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase",
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=False)
-        #print numpy.random.rand()
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=False)
-        states.append(X)
-        ids.append(I)
-        #print numpy.random.rand()
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=False)
-        #X,I,perf = liquid.test(stest, itest, titlestr="readout test phase after %ds training" % ((itest+1)*strain),
-            #savestrprefix="sem_liquid_test%d_inp"%(itest+1), plot_readout_spikes=True, train_readouts=False)
-        states.append(X)
-        ids.append(I)
-        #print numpy.random.rand()
-    states = numpy.concatenate(states)
-    ids = numpy.concatenate(ids)
-    liquid.plot_weight_distribution()
-    if liquid.ext=='pdf':
-        liquid.concatenate_pdf(delete=True)
-    pylab.close('all')
-    return liquid, test_times
-
-def sem_liquid_xor_pattern(seed=None, pConn=1.0):
-    strain = 5
-    stest_train = 50
-    stest = 3
-    params = SEMLiquidParams(task='xor_pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=2, rin=5,
-        use_priors=False, tPattern=[50e-3]*2+[300e-3]*2, seed=seed, frac_tau_DS=10, train_fraction=1.0, embedded=True,
-        pattern_sequences=[[[0],[1]],[[0],[0]]], test_pattern_sequences=[[[0],[1]],[[0],[0]]], pConn=0.1, rNoise=2,
-        size=(5,5), size_lims=[2,25], use_dynamic_synapses=True, use_entropy_regularization=False,
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 500e-3])#,
-        #nconn=10000, dt_rec_spk=stest*1000, nstepsrec=stest*1000)
-    liquid = SEMLiquid(params)
-    liquid.sub_neurons = 1
-    liquid.sub_neurons_input = 1
-    liquid.isppt = False
-    liquid.ext = 'pdf'
-    liquid.initialize_random_weights()
-    num_train_periods = 20
-    test_times = []
-
-    itest=0
-    liquid.inpgen.switch(1)
-    liquid.test_inpgen.switch(1)
-    liquid.order_states=True
-    liquid.test(stest, itest, titlestr="correlation readout test phase",
-        savestrprefix="sem_liquid_test_corr_%d_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    liquid.order_states=False
-    liquid.inpgen.switch(0)
-    liquid.test_inpgen.switch(0)
-    test_titlestr = "test response"
-    X,I,perf = liquid.test(stest_train, itest, titlestr="XOR readout train phase",
-        savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True)
-    #print numpy.random.rand()
-    X,I,perf = liquid.test(stest, itest, titlestr="XOR readout test phase",
-        savestrprefix="sem_liquid_test_xor_%d_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    #print numpy.random.rand()
-    #X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-        #savestrprefix="sem_liquid_test_xor_%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=False)
-    #liquid.plot_weight_distribution(savestrprefix='sem_liquid_pre')
-
-    for itest in range(1,num_train_periods+1):
-        liquid.inpgen.switch(1)
-        liquid.test_inpgen.switch(1)
-        liquid.order_states=True
-        liquid.simulate(strain, titlestr="training phase #%d" %(itest),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True)
-        liquid.test(stest, itest, titlestr="correlation readout test phase",
-            savestrprefix="sem_liquid_test_corr_%d_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.order_states=False
-        liquid.inpgen.switch(0)
-        liquid.test_inpgen.switch(0)
-        states = []
-        ids = []
-        test_titlestr = "test response"
-        X,I,perf = liquid.test(stest_train, itest, titlestr="XOR readout train phase",
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True)
-        #print numpy.random.rand()
-        X,I,perf = liquid.test(stest, itest, titlestr="XOR readout test phase",
-            savestrprefix="sem_liquid_test_xor_%d_inp"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        states.append(X)
-        ids.append(I)
-        #print numpy.random.rand()
-        #X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            #savestrprefix="sem_liquid_test_xor_%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=False)
-        #X,I,perf = liquid.test(stest, itest, titlestr="readout test phase after %ds training" % ((itest+1)*strain),
-            #savestrprefix="sem_liquid_test%d_inp"%(itest+1), plot_readout_spikes=True, train_readouts=False)
+            savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
         #states.append(X)
         #ids.append(I)
-        #print numpy.random.rand()
-    states = numpy.concatenate(states)
-    ids = numpy.concatenate(ids)
+        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
+            savestrprefix="sem_liquid_test%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+        #states.append(X)
+        #ids.append(I)
+
+    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
+    for itest in range(num_trial_periods):
+        X,I,perf = liquid.test(stest, itest, titlestr="Trial #%d"%(itest),
+            savestrprefix="sem_liquid_trials%d"%(itest), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    #states = numpy.concatenate(states)
+    #ids = numpy.concatenate(ids)
+    #liquid.trainPCA(states)
+    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
     #liquid.plot_weight_distribution()
-    if liquid.ext=='pdf' and len(liquid.figurelist)>0:
+    if liquid.ext=='pdf':
         liquid.concatenate_pdf(delete=True)
-    if len(liquid.figurelist)>0:
-        pylab.close('all')
+    #pylab.show()
+    pylab.close('all')
     return liquid, test_times
 
+
+
+# Start
 if __name__ == '__main__':
 
     matplotlib.rcParams['font.size'] = 16.0
 
-    task = sys.argv[1]
     ntrials = 1
-    if len(sys.argv)>2:
-        ntrials = (int)(sys.argv[2])
+
     seeds = [None]*ntrials
     params = [None]*ntrials
-    if (task=='speech'):
-        #seeds = [42172,56019,39247,59812]
-        #seeds = [56019]
-        #seeds = [54460]
-        seeds = [2379]
-        fcn = sem_liquid_speech
-    elif (task=='multi'):
-        #seeds = [55695]
-        fcn = sem_liquid_multi
-    elif (task=='xor'):
-        fcn = sem_liquid_xor
-        #params = numpy.linspace(0.0,1.0,ntrials)
-    elif (task=='xor_pattern'):
-        fcn = sem_liquid_xor_pattern
-        #params = numpy.linspace(0.0,1.0,ntrials)
-    elif (task=='pattern1'):
-        #seeds = [63156]
-        seeds = [13521]
-        #seeds = [49856] orig
-        fcn = sem_liquid_pattern1
-    elif (task=='pattern12'):
-        #seeds = [63156]
-        #seeds = [13521]
-        seeds = [49856]
-        fcn = sem_liquid_pattern12
-    elif (task=='pattern2'):
-        #seeds = [63082]
-        seeds = [18657]
-        fcn = sem_liquid_pattern2
-    elif (task=='pattern4A'):
-        #seeds = [63156]
-        seeds = [13521]
-        #seeds = [49856] orig
-        fcn = sem_liquid_pattern4A
-    elif (task=='fail'):
-        fcn = sem_liquid_fail
-    else:
-        raise Exception("Task %s not implemented" % (task))
 
+    seeds = [49856]
+    fcn = sem_liquid_pattern1  # sem_liquid_pattern1 is the function that [???????????????????]
+    
     ntrials = len(seeds)
     seeds_dict = dict()
     perfs_dict = dict()
@@ -2215,46 +1623,9 @@ if __name__ == '__main__':
         print
         print "TRIAL %d/%d" % (i+1,ntrials)
         print
-        liquid,test_times = fcn(seed, params[i])
+        liquid,test_times = fcn(seed, params[i]) # fcn is placeholder for the function sem_liquid_pattern1
         seeds_dict[liquid.outputdir] = liquid.seed
         perfs_dict[liquid.outputdir] = liquid.test_performance
         params_dict[liquid.outputdir] = params[i]
     print
     keys = numpy.sort(seeds_dict.keys())
-
-    if task=='xor_pattern' or task=='speech':# or task=='pattern12':
-        tmp = numpy.asarray(perfs_dict[keys[0]]['stimulus'])
-        perf_stim = numpy.zeros((tmp.shape[0],tmp.shape[1],len(keys)))
-        tmp = numpy.asarray(perfs_dict[keys[0]]['network'])
-        perf_net = numpy.zeros((tmp.shape[0],tmp.shape[1],len(keys)))
-        for ki,key in enumerate(keys):
-            print key
-            print 'seed:', seeds_dict[key]
-            print 'params:', params_dict[key]
-            print 'performance on stimulus:'
-            perf_stim[:,:,ki] = numpy.asarray(perfs_dict[key]['stimulus'])
-            print perf_stim[:,:,ki]
-            print 'performance on network:'
-            perf_net[:,:,ki] = numpy.asarray(perfs_dict[key]['network'])
-            print perf_net[:,:,ki]
-            print
-
-        if task=='xor_pattern':
-            print "perf_stim_xor"
-            #print perf_stim
-            print numpy.mean(perf_stim[1::2,:2,:], axis=2)
-            #print numpy.std(perf_stim, axis=0)
-            #print "perf_stim2"
-            #print numpy.mean(perf_stim2, axis=0)
-            #print numpy.std(perf_stim2, axis=0)
-            print "perf_net_xor"
-            #print perf_net
-            print numpy.mean(perf_net[1::2,:2,:], axis=2)
-            #print numpy.std(perf_net, axis=0)
-            print "perf_net_corr"
-            print numpy.mean(perf_net[::2,2:,:], axis=2)
-            #print numpy.std(perf_net2, axis=0)
-            d = shelve.open("perf_XOR_delay_corr.shelve")
-            d["perf_stim"] = perf_stim
-            d["perf_net"] = perf_net
-            d.close()
