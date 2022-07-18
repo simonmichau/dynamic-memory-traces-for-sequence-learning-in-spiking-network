@@ -1,6 +1,7 @@
 import numpy
-import pylab
 import matplotlib
+matplotlib.use('agg')
+import pylab
 import sys
 
 from sem_liquid import SEMLiquidParams, SEMLiquid
@@ -111,7 +112,7 @@ def sem_liquid_pattern5(seed=None, *p):
     liquid.ext = 'pdf'
     liquid.initialize_random_weights()
     num_train_periods = 1
-    num_test_periods = 100
+    num_test_periods = 10
     test_times = numpy.arange(0, num_train_periods * strain + strain / 2.0, strain)
 
     itest = 0

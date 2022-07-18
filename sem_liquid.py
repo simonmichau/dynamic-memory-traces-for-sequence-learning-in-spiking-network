@@ -370,7 +370,8 @@ class SEMLiquid(object):
         self.plot_weights = False
 
         self.filename = 'sem_liquid.py'
-        self.outputdir = 'C:/Users/User/Nextcloud/Documents/Uni/Notebook/6.Semester/Bachelorarbeit/dynamic-memory-traces-for-sequence-learning-in-spiking-networks/data/'
+        self.outputdir = os.path.abspath(os.getcwd()) + '/data/'  # on windows
+        #self.outputdir = os.environ["PWD"] + '/data/'  # on linux
         if hasattr(datetime, 'today'):
             today = datetime.today()
         else:
