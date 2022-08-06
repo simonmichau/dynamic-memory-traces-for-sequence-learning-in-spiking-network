@@ -1,22 +1,17 @@
 import matplotlib
 matplotlib.use('Agg')
-import numpy
-import pylab
 import timeit
 import scipy.linalg
 import datetime
-import shutil, os, sys, subprocess
+import shutil, os
 import logging
 import copy
-from scipy import stats
-import shelve
 
 import mdp
 #from enthought.mayavi import mlab
 
-from sem_utils import *
 from sem_recorder import *
-from sem_input import *
+from legacy.sem_input import *
 #from sem import *
 
 class SEMLiquidParams(object):
@@ -1568,7 +1563,6 @@ class SEMLiquid(object):
 
     def concatenate_pdf(self, output="figures.pdf", delete=True):
         delete=False  # @change - don't remove any figure
-        import dircache
         #pdffiles = [f for f in dircache.listdir(self.outputdir) if f[:-4]=='.pdf']
         pdffiles = ' '.join(self.figurelist)
         outputfile = self.outputdir+output

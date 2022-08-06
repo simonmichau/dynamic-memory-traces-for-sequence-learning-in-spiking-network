@@ -1,20 +1,15 @@
 import matplotlib
 
 matplotlib.use('Agg')
-import numpy
-import pylab
 import timeit
 import scipy.linalg
 import datetime
-import shutil, os, sys, subprocess
+import os
 import logging
 import copy
-from scipy import stats
-import shelve
 import mdp
-from sem_utils import *
 from sem_recorder import *
-from sem_input import *
+from legacy.sem_input import *
 
 # from sem import *
 # from enthought.mayavi import mlab

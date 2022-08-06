@@ -44,7 +44,7 @@ class PreprocessedSpeech(InputGenerator):
         self.rev_digits = kwds.get('rev_digits',self.digits)
         self.rev_utterances = kwds.get('rev_utterances',self.utterances)
         self.rev_st = kwds.get('rev_st',False)
-        self.path = os.path.realpath(kwds.get('path','.'))
+        self.path = os.path.realpath(kwds.get('path', '..'))
         self.stimlist = kwds.get('stimlist',[])
         if len(self.stimlist)==0:
             self.size = len(self.speakers)*len(self.digits)*len(self.utterances)
