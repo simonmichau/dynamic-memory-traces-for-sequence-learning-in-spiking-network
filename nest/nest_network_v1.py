@@ -1,3 +1,8 @@
+"""
+First approach to model the network of WTA circuits using NESTs build-in spatially structured networks.
+
+Stopped at implementation of connections
+"""
 import random
 import math
 from nest.lib.hl_api_types import *
@@ -33,14 +38,12 @@ class WTACircuitGrid(object):
         # Initialize NodeCollection
         self.nc = self.createNodes()
 
-    def getNeighbours(self, n: NodeCollection) -> NodeCollection:  # TODO
-        """Returns the NodeCollection of all nodes in the same WTA circuit as Node n"""
-        #print(nest.GetPosition(n)[2])
-        self.getNodeByPos(z=1)
-        #nest.PlotProbabilityParameter(n, parameter=nest.GetConnections())
+        # Form Connections
+        self.formInternalConnections()
+        # self.formExternalInputs()
 
     def getNodeByPos(self, x=None, y=None, z=None) -> NodeCollection | None:
-        """Return all Nodes matching the specified position"""
+        """Return all Nodes matching the specified parameters for x,y,z"""
         # (x: 0-n, y: 0-m, z: 0-k_max)
         # Associate NodeID with position
         arr = []
@@ -50,30 +53,38 @@ class WTACircuitGrid(object):
         # loop over arr and add all NodeIDs to list when coordinated match
         global_id_list = []
         for a in arr:
-            #if x == int(a[0][0]) and y == int(a[0][1]) and z == int(a[0][2]):
+            # if x == int(a[0][0]) and y == int(a[0][1]) and z == int(a[0][2]):
             #    global_id_list.append(a[1])
             if x is None:
                 if y is None:
                     if z is None:
-                        if True: global_id_list.append(a[1])
+                        if True:
+                            global_id_list.append(a[1])
                     else:
-                        if z == int(a[0][2]): global_id_list.append(a[1])
+                        if z == int(a[0][2]):
+                            global_id_list.append(a[1])
                 else:
                     if z is None:
-                        if y == int(a[0][1]): global_id_list.append(a[1])
+                        if y == int(a[0][1]):
+                            global_id_list.append(a[1])
                     else:
-                        if y == int(a[0][1]) and z == int(a[0][2]): global_id_list.append(a[1])
+                        if y == int(a[0][1]) and z == int(a[0][2]):
+                            global_id_list.append(a[1])
             else:
                 if y is None:
                     if z is None:
-                        if x == int(a[0][0]): global_id_list.append(a[1])
+                        if x == int(a[0][0]):
+                            global_id_list.append(a[1])
                     else:
-                        if x == int(a[0][0]) and z == int(a[0][2]): global_id_list.append(a[1])
+                        if x == int(a[0][0]) and z == int(a[0][2]):
+                            global_id_list.append(a[1])
                 else:
                     if z is None:
-                        if x == int(a[0][0]) and y == int(a[0][1]): global_id_list.append(a[1])
+                        if x == int(a[0][0]) and y == int(a[0][1]):
+                            global_id_list.append(a[1])
                     else:
-                        if x == int(a[0][0]) and y == int(a[0][1]) and z == int(a[0][2]): global_id_list.append(a[1])
+                        if x == int(a[0][0]) and y == int(a[0][1]) and z == int(a[0][2]):
+                            global_id_list.append(a[1])
 
         matching_nodes = nest.NodeCollection(global_id_list)
         return matching_nodes
@@ -90,7 +101,7 @@ class WTACircuitGrid(object):
                                 )
         return res_layer
 
-    def formConnections(self):
+    def formInternalConnections(self):
         conn_dict = {
             'rule': 'pairwise_bernoulli',
             'allow_autapses': False,
@@ -98,20 +109,24 @@ class WTACircuitGrid(object):
             'p': self.lam * nest.spatial_distributions.exponential(
                 (nest.spatial.distance.x**2 + nest.spatial.distance.y**2)**(1/2),
                 beta=1/self.lam)
-            #'mask': { # TODO: ensure neurons from the same WTA cannot be connected to each other
+            # 'mask': { # TODO: ensure neurons from the same WTA cannot be connected to each other
             #    'doughnut': {
             #        'inner_radius': 1.,
             #        'outer_radius': 10.
             #    }
-            #}
+            # }
         }
         syn_dict = {}  # TODO: implement synapse model with STP and STDP
         nest.Connect(self.nc, self.nc, conn_dict)
 
         print(nest.GetConnections(self.nc[0]))
-        self.getNeighbours(self.nc[0])
 
-        #self.measureNodeCollection(nc)
+        nest.PlotTargets(self.nc[0], self.nc)
+        # TODO: remove connections in same WTA circuit
+        #nest.Disconnect(self.nc, self.nc)
+        nest.PlotTargets(self.nc[0], self.nc)
+
+        # self.measureNodeCollection(nc)
 
     def measureNodeCollection(self, nc: NodeCollection) -> None:
         """Simulates given NodeCollection for t_sim and plots the recorded spikes and membrane potential"""
@@ -126,12 +141,12 @@ class WTACircuitGrid(object):
         dmm = multimeter.get()
         Vms = dmm["events"]["V_m"]
         ts = dmm["events"]["times"]
-        #plt.figure(1)
+        # plt.figure(1)
         plt.plot(ts, Vms)
         dSD = spikerecorder.get("events")
         evs = dSD["senders"]
         ts = dSD["times"]
-        #plt.figure(2)
+        # plt.figure(2)
         plt.plot(ts, evs, ".")
 
     def getNeuronFrequencyGrid(self) -> np.ndarray:
@@ -143,7 +158,7 @@ class WTACircuitGrid(object):
         return data
 
     def visualizeNodes(self, nc: NodeCollection) -> None:
-        """Creates a visualization showing the number of neurons k per WTA circuit on the grid"""
+        """Creates a 2D visualization showing the number of neurons k per WTA circuit on the grid"""
         data = self.getNeuronFrequencyGrid()
 
         fig, ax = plt.subplots()
@@ -173,10 +188,13 @@ class WTACircuitGrid(object):
 
 # Initialize new grid
 grid = WTACircuitGrid()
-# Form connections between nodes
-grid.formConnections()
 
-#grid.visualizeNodes(grid.nc)
-#grid.plotNodes()
-nest.PlotTargets(grid.nc[0], grid.nc)
+# Plot k for each gridpoint in 2D
+# grid.visualizeNodes(grid.nc)
+# Plot grid nodes in 3D
+# grid.plotNodes()
+
+# Plot Location of one Node and all its targets in 3D
+# nest.PlotTargets(grid.nc[150], grid.nc)
+
 plt.show()
