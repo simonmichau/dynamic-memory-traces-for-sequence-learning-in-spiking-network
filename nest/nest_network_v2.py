@@ -60,6 +60,7 @@ class Network(object):
 
         # ADMINISTRATIVE VARIABLES
         self.save_figures = kwds.get('save_figures', False)
+        self.show_figures = kwds.get('show_figures', True)
 
     def createNodes(self) -> list:
         """
@@ -110,7 +111,40 @@ class Network(object):
 
         if self.save_figures:
             plt.savefig("grid_visualization.png")
+        if self.show_figures:
+            plt.show()
 
+    def getPosByID(self, node_id: int) -> tuple | None:
+        """Returns the position of the WTA circuit which contains the node with the given ID"""
+        for i in self.circuits:
+            if node_id in i.nc.get()['global_id']:
+                return i.getPos()
+
+    def visualizeConnections(self, nc: NodeCollection):
+        """Visualizes all the outgoing connections from some node"""
+        # Get List of X and Y coordinates of each target's position
+        X = []
+        Y = []
+        for target_id in nest.GetConnections(nc).target:
+            target_pos = self.getPosByID(target_id)
+            X.append(target_pos[0])
+            Y.append(target_pos[1])
+
+        # TODO: get positions of each node in nc and plot it in the graph
+        # print(self.getPosByID(nc.get()['global_id']))
+        # plt.plot(x, y, 'ro')
+
+        # create position frequency array stating the number of occurrences of each position in the target list
+        data = np.zeros((self.m, self.n))
+        for i in range(len(X)):
+            data[Y[i], X[i]] += 1
+
+        # create size list
+        size = []
+        for i in range(len(X)):
+            size.append(80*data[Y[i], X[i]])
+
+        plt.scatter(X, Y, s=size, c=size, alpha=0.5)
         plt.show()
 
     def formConnections(self):
@@ -132,10 +166,8 @@ class Network(object):
                     conn_dict['p'] = self.lam * math.exp(-self.lam * d)
                     nest.Connect(self.circuits[i].getNodeCollection(), self.circuits[j].getNodeCollection(), conn_dict)
 
-        # print(nest.GetConnections(self.circuits[0].getNodeCollection()))
-        # print(len(nest.GetConnections(self.circuits[0].getNodeCollection())))
-
 
 grid = Network()
 grid.visualizeCircuits()
 grid.formConnections()
+grid.visualizeConnections(grid.circuits[0].getNodeCollection())
