@@ -13,25 +13,25 @@ class WTACircuit:
     def __init__(self, nc: NodeCollection, pos):
         self.nc = nc
         self.pos = pos
-        self.k = self.getSize()
+        self.k = self.get_size()
 
-    def getPos(self):
+    def get_pos(self):
         """Returns the (x, y) position of the WTA circuit"""
         return self.pos
 
-    def getX(self):
+    def get_x(self):
         """Returns the x coordinate of the WTA circuit"""
         return self.pos[0]
 
-    def getY(self):
+    def get_y(self):
         """Returns the y coordinate of the WTA circuit"""
         return self.pos[1]
 
-    def getNodeCollection(self):
+    def get_node_collection(self):
         """Returns the NodeCollection nc"""
         return self.nc
 
-    def getSize(self):
+    def get_size(self):
         """Returns the size of the NodeCollection nc"""
         return len(self.nc.get('global_id'))
 
@@ -91,13 +91,38 @@ class Network(object):
         self.t_sim = kwds.get('t_sim', 2000.0)
 
         # List containing all WTA circuits
-        self.circuits = self.createNodes()
+        self.circuits = self.create_nodes()
 
         # ADMINISTRATIVE VARIABLES
         self.save_figures = kwds.get('save_figures', False)
         self.show_figures = kwds.get('show_figures', True)
 
-    def createNodes(self) -> list:
+    def _get_circuit_grid(self) -> np.ndarray:
+        """Returns a (nxm) array containing the neuron frequencies per grid point"""
+        data = np.zeros((self.m, self.n))
+        for circuit in self.circuits:
+            data[circuit.get_pos()[1], circuit.get_pos()[0]] = circuit.get_size()
+        return data
+
+    def _get_node_collections(self, *index):
+        """Return an element or slice of **self.circuits**"""
+        if len(index) == 1:
+            return self.circuits[index].get_node_collection()
+        elif len(index) >= 2:
+            id_list = []
+            for circuit in self.circuits[index[0]:index[1]]:
+                id_list += circuit.get_node_collection().get()['global_id']
+            return nest.NodeCollection(id_list)
+        else:
+            return None
+
+    def _get_pos_by_id(self, node_id: int) -> tuple | None:
+        """Returns the position of the WTA circuit which contains the node with the given ID"""
+        for i in self.circuits:
+            if node_id in i.nc.get()['global_id']:
+                return i.get_pos()
+
+    def create_nodes(self) -> list:
         """
         Returns a list of WTACircuit objects of size K for each coordinate on the (nxm) grid
 
@@ -114,28 +139,35 @@ class Network(object):
                 circuit_list.append(WTACircuit(nc, (n, m)))
         return circuit_list
 
-    def getCircuitSizeGrid(self) -> np.ndarray:
-        """Returns a (nxm) array containing the neuron frequencies per grid point"""
-        data = np.zeros((self.m, self.n))
-        for circuit in self.circuits:
-            data[circuit.getPos()[1], circuit.getPos()[0]] = circuit.getSize()
-        return data
+    def form_connections(self):
+        """Connect every WTA circuit """
+        conn_dict = {
+            'rule': 'pairwise_bernoulli',
+            'allow_autapses': False,
+            'p': 1.0
+        }
+        syn_dict = {}  # TODO: implement synapse model with STP and STDP
 
-    def getNodeCollections(self, *index):
-        """Return an element or slice of **self.circuits**"""
-        if len(index) == 1:
-            return self.circuits[index].getNodeCollection()
-        elif len(index) >= 2:
-            id_list = []
-            for circuit in self.circuits[index[0]:index[1]]:
-                id_list += circuit.getNodeCollection().get()['global_id']
-            return nest.NodeCollection(id_list)
-        else:
-            return None
+        # Iterate over each WTACircuit object and establish connections to every other population with p(d)
+        for i in range(len(self.circuits)):
+            self.circuits[i].get_pos()
+            for j in range(len(self.circuits)):
+                if i != j:
+                    d = math.sqrt((self.circuits[i].get_x()-self.circuits[j].get_x())**2
+                                  + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
+                    conn_dict['p'] = self.lam * math.exp(-self.lam * d)
+                    nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(), conn_dict)
 
-    def visualizeCircuits(self):
+    def connect_input(self, inp_pop: InputPopulation) -> None:
+        """Connects an **InputPopulation** to this **Network**"""
+        # TODO: implement incoming connections
+        # also TODO: find out by what metrics these connections are formed
+        nest.Connect(inp_pop.pop, self.circuits[0].get_node_collection())
+        #print(nest.GetConnections(inp_pop.pop))
+
+    def visualize_circuits(self):
         """Creates a 2D visualization showing the number of neurons k per WTA circuit on the grid"""
-        data = self.getCircuitSizeGrid()
+        data = self._get_circuit_grid()
 
         fig, ax = plt.subplots()
         im = ax.imshow(data)
@@ -161,19 +193,13 @@ class Network(object):
         if self.show_figures:
             plt.show()
 
-    def getPosByID(self, node_id: int) -> tuple | None:
-        """Returns the position of the WTA circuit which contains the node with the given ID"""
-        for i in self.circuits:
-            if node_id in i.nc.get()['global_id']:
-                return i.getPos()
-
-    def visualizeConnections(self, nc: NodeCollection):
+    def visualize_connections(self, nc: NodeCollection):
         """Visualizes all the outgoing connections from some node"""
         # Get List of X and Y coordinates of each target's position
         X = []
         Y = []
         for target_id in nest.GetConnections(nc).target:
-            target_pos = self.getPosByID(target_id)
+            target_pos = self._get_pos_by_id(target_id)
             X.append(target_pos[0])
             Y.append(target_pos[1])
 
@@ -181,7 +207,7 @@ class Network(object):
         source_pos_list = []
         for source_node in nc:
             source_id = source_node.get()['global_id']
-            source_pos = self.getPosByID(source_id)
+            source_pos = self._get_pos_by_id(source_id)
             source_pos_list.append(source_pos)
 
         # create position frequency array stating the number of occurrences of each position in the target list
@@ -216,34 +242,8 @@ class Network(object):
         if self.show_figures:
             plt.show()
 
-    def formConnections(self):
-        """Connect every WTA circuit """
-        conn_dict = {
-            'rule': 'pairwise_bernoulli',
-            'allow_autapses': False,
-            'p': 1.0
-        }
-        syn_dict = {}  # TODO: implement synapse model with STP and STDP
 
-        # Iterate over each WTACircuit object and establish connections to every other population with p(d)
-        for i in range(len(self.circuits)):
-            self.circuits[i].getPos()
-            for j in range(len(self.circuits)):
-                if i != j:
-                    d = math.sqrt((self.circuits[i].getX()-self.circuits[j].getX())**2
-                                  + (self.circuits[i].getY()-self.circuits[j].getY())**2)
-                    conn_dict['p'] = self.lam * math.exp(-self.lam * d)
-                    nest.Connect(self.circuits[i].getNodeCollection(), self.circuits[j].getNodeCollection(), conn_dict)
-
-    def connectInput(self, inp_pop: InputPopulation) -> None:
-        """Connects an **InputPopulation** to this **Network**"""
-        # TODO: implement incoming connections
-        # also TODO: find out by what metrics these connections are formed
-        nest.Connect(inp_pop.pop, self.circuits[0].getNodeCollection())
-        #print(nest.GetConnections(inp_pop.pop))
-
-
-def measureNodeCollection(nc: NodeCollection) -> None:
+def measure_node_collection(nc: NodeCollection) -> None:
     """Simulates given NodeCollection for t_sim and plots the recorded spikes and membrane potential"""
     multimeter = nest.Create('multimeter')
     multimeter.set(record_from=['V_m'])
@@ -267,18 +267,18 @@ def measureNodeCollection(nc: NodeCollection) -> None:
 
 
 grid = Network()
-grid.visualizeCircuits()
-grid.formConnections()
-# grid.visualizeConnections(grid.circuits[0].getNodeCollection())
+grid.visualize_circuits()
+grid.form_connections()
+# grid.visualize_connections(grid.circuits[0].get_node_collection())
 
 nest.Simulate(2000.0)
 
 inpPop = InputPopulation(10)
-grid.connectInput(inpPop)
+grid.connect_input(inpPop)
 
-# measureNodeCollection(grid.circuits[0].getNodeCollection())
-# measureNodeCollection(inpPop.pop)
+# measure_node_collection(grid.circuits[0].get_node_collection())
+# measure_node_collection(inpPop.pop)
 
 
-# (TODO): version of visualizeConnections where the percentage of connected neurons is given instead of total amount
+# (TODO): version of visualize_connections where the percentage of connected neurons is given instead of total amount
 # TODO: implement lateral inhibition
