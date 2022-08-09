@@ -104,17 +104,12 @@ class Network(object):
             data[circuit.get_pos()[1], circuit.get_pos()[0]] = circuit.get_size()
         return data
 
-    def _get_node_collections(self, *index):
-        """Return an element or slice of **self.circuits**"""
-        if len(index) == 1:
-            return self.circuits[index].get_node_collection()
-        elif len(index) >= 2:
-            id_list = []
-            for circuit in self.circuits[index[0]:index[1]]:
-                id_list += circuit.get_node_collection().get()['global_id']
-            return nest.NodeCollection(id_list)
-        else:
-            return None
+    def _get_node_collections(self, s: slice) -> NodeCollection | None:
+        """Return a slice of **self.circuits** as a **NodeCollection**"""
+        id_list = []
+        for circuit in self.circuits[s]:
+            id_list += circuit.get_node_collection().get()['global_id']
+        return nest.NodeCollection(id_list)
 
     def _get_pos_by_id(self, node_id: int) -> tuple | None:
         """Returns the position of the WTA circuit which contains the node with the given ID"""
@@ -271,7 +266,7 @@ grid.visualize_circuits()
 grid.form_connections()
 # grid.visualize_connections(grid.circuits[0].get_node_collection())
 
-nest.Simulate(2000.0)
+# grid._get_node_collections(slice(1, 3))
 
 inpPop = InputPopulation(10)
 grid.connect_input(inpPop)
