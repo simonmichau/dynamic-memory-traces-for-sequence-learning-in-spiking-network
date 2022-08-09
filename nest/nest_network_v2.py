@@ -36,6 +36,41 @@ class WTACircuit:
         return len(self.nc.get('global_id'))
 
 
+class InputPopulation(object):
+    def __init__(self, n, **kwds):
+        # Number of neurons in input population
+        self.n = n
+        # Rise and decay time constant for EPSP (in ms)
+        self.tau_rise = kwds.get('tau_rise', 2)
+        self.tau_decay = kwds.get('tau_decay', 20)
+        # Resting membrane potential (in mV)
+        self.E_L = kwds.get('E_L', -70.0)
+        # Capacity of the membrane (in pF)
+        self.C_m = kwds.get('C_m', 250.0)
+        # Duration of refractory period (V_m = V_reset) (in ms)
+        self.t_ref = kwds.get('t_ref', 2.0)
+        # Membrane potential (in mV)
+        self.V_m = kwds.get('V_m', -70.0)
+        # Spike threshold (in mV)
+        self.V_th = kwds.get('V_th', -55.0)
+        # Reset membrane potential after a spike (in mV)
+        self.V_reset = kwds.get('V_reset', -70.0)
+        # Constant input current
+        self.I_e = kwds.get('I_e', 0.0)
+
+        # Actual input population
+        self.pop = nest.Create('iaf_psc_exp', self.n, params={'E_L': self.E_L,
+                                                              'C_m': self.C_m,
+                                                              'tau_syn_ex': self.tau_rise,
+                                                              'tau_m': self.tau_decay,
+                                                              't_ref': self.t_ref,
+                                                              'V_m': self.V_m,
+                                                              'V_th': self.V_th,
+                                                              'V_reset': self.V_reset,
+                                                              'I_e': self.I_e
+                                                              })
+
+
 class Network(object):
     def __init__(self, **kwds):
         # FUNCTIONAL VARIABLES
@@ -86,6 +121,18 @@ class Network(object):
             data[circuit.getPos()[1], circuit.getPos()[0]] = circuit.getSize()
         return data
 
+    def getNodeCollections(self, *index):
+        """Return an element or slice of **self.circuits**"""
+        if len(index) == 1:
+            return self.circuits[index].getNodeCollection()
+        elif len(index) >= 2:
+            id_list = []
+            for circuit in self.circuits[index[0]:index[1]]:
+                id_list += circuit.getNodeCollection().get()['global_id']
+            return nest.NodeCollection(id_list)
+        else:
+            return None
+
     def visualizeCircuits(self):
         """Creates a 2D visualization showing the number of neurons k per WTA circuit on the grid"""
         data = self.getCircuitSizeGrid()
@@ -130,22 +177,44 @@ class Network(object):
             X.append(target_pos[0])
             Y.append(target_pos[1])
 
-        # TODO: get positions of each node in nc and plot it in the graph
-        # print(self.getPosByID(nc.get()['global_id']))
-        # plt.plot(x, y, 'ro')
+        # Get positions of each source node and save to list
+        source_pos_list = []
+        for source_node in nc:
+            source_id = source_node.get()['global_id']
+            source_pos = self.getPosByID(source_id)
+            source_pos_list.append(source_pos)
 
         # create position frequency array stating the number of occurrences of each position in the target list
         data = np.zeros((self.m, self.n))
         for i in range(len(X)):
             data[Y[i], X[i]] += 1
 
-        # create size list
-        size = []
-        for i in range(len(X)):
-            size.append(80*data[Y[i], X[i]])
+        ########################################################
+        fig, ax = plt.subplots()
+        im = ax.imshow(data)
 
-        plt.scatter(X, Y, s=size, c=size, alpha=0.5)
-        plt.show()
+        # Show all ticks and label them with the respective list entries
+        ax.set_xticks(np.arange(self.n))
+        ax.set_yticks(np.arange(self.m))
+
+        # Rotate the tick labels and set their alignment
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+        # Loop over data dimensions and create text annotations
+        for i in range(self.m):
+            for j in range(self.n):
+                if (i, j) not in source_pos_list:
+                    text = ax.text(j, i, data[i, j], ha="center", va="center", color="w")
+                else:
+                    text = ax.text(j, i, "x", ha="center", va="center", color="w")
+        ax.set_title("Outgoing connections from node(s) %s" % str(nc.get()['global_id']))
+        ax.set_xlabel("%d outgoing connections total" % np.sum(data))
+        fig.tight_layout()
+
+        if self.save_figures:
+            plt.savefig("conn_visualization.png")
+        if self.show_figures:
+            plt.show()
 
     def formConnections(self):
         """Connect every WTA circuit """
@@ -166,8 +235,50 @@ class Network(object):
                     conn_dict['p'] = self.lam * math.exp(-self.lam * d)
                     nest.Connect(self.circuits[i].getNodeCollection(), self.circuits[j].getNodeCollection(), conn_dict)
 
+    def connectInput(self, inp_pop: InputPopulation) -> None:
+        """Connects an **InputPopulation** to this **Network**"""
+        # TODO: implement incoming connections
+        # also TODO: find out by what metrics these connections are formed
+        nest.Connect(inp_pop.pop, self.circuits[0].getNodeCollection())
+        #print(nest.GetConnections(inp_pop.pop))
+
+
+def measureNodeCollection(nc: NodeCollection) -> None:
+    """Simulates given NodeCollection for t_sim and plots the recorded spikes and membrane potential"""
+    multimeter = nest.Create('multimeter')
+    multimeter.set(record_from=['V_m'])
+    spikerecorder = nest.Create('spike_recorder')
+    nest.Connect(multimeter, nc)
+    nest.Connect(nc, spikerecorder)
+
+    nest.Simulate(2000.0)
+
+    dmm = multimeter.get()
+    Vms = dmm["events"]["V_m"]
+    ts = dmm["events"]["times"]
+    # plt.figure(1)
+    plt.plot(ts, Vms)
+    dSD = spikerecorder.get("events")
+    evs = dSD["senders"]
+    ts = dSD["times"]
+    # plt.figure(2)
+    plt.plot(ts, evs, ".")
+    plt.show()
+
 
 grid = Network()
 grid.visualizeCircuits()
 grid.formConnections()
-grid.visualizeConnections(grid.circuits[0].getNodeCollection())
+# grid.visualizeConnections(grid.circuits[0].getNodeCollection())
+
+nest.Simulate(2000.0)
+
+inpPop = InputPopulation(10)
+grid.connectInput(inpPop)
+
+# measureNodeCollection(grid.circuits[0].getNodeCollection())
+# measureNodeCollection(inpPop.pop)
+
+
+# (TODO): version of visualizeConnections where the percentage of connected neurons is given instead of total amount
+# TODO: implement lateral inhibition
