@@ -1,10 +1,11 @@
 import random
 import math
-from nest.lib.hl_api_types import *
 
 import numpy as np
 import matplotlib.pyplot as plt
 import nest
+from nest.lib.hl_api_types import *
+
 
 nest.ResetKernel()
 
@@ -71,6 +72,11 @@ class InputPopulation(object):
                                                               })
 
 
+class ReadoutPopulation(object):
+    def __init__(self):
+        pass
+
+
 class Network(object):
     def __init__(self, **kwds):
         # FUNCTIONAL VARIABLES
@@ -91,7 +97,7 @@ class Network(object):
         self.t_sim = kwds.get('t_sim', 2000.0)
 
         # List containing all WTA circuits
-        self.circuits = self.create_nodes()
+        self.circuits = self.create_grid()
 
         # ADMINISTRATIVE VARIABLES
         self.save_figures = kwds.get('save_figures', False)
@@ -117,9 +123,9 @@ class Network(object):
             if node_id in i.nc.get()['global_id']:
                 return i.get_pos()
 
-    def create_nodes(self) -> list:
+    def create_grid(self) -> list:
         """
-        Returns a list of WTACircuit objects of size K for each coordinate on the (nxm) grid
+        Create a **WTACircuit** object for every point on the (nxm) grid and returns all those objects in a list
 
         - **K**: number of neurons in a WTA circuit, randomly drawn with lower and upper bound [k_min, k_max]
         """
@@ -134,7 +140,7 @@ class Network(object):
                 circuit_list.append(WTACircuit(nc, (n, m)))
         return circuit_list
 
-    def form_connections(self):
+    def form_connections(self) -> None:
         """Connect every WTA circuit """
         conn_dict = {
             'rule': 'pairwise_bernoulli',
@@ -156,12 +162,14 @@ class Network(object):
     def connect_input(self, inp_pop: InputPopulation) -> None:
         """Connects an **InputPopulation** to this **Network**"""
         # TODO: implement incoming connections
-        # also TODO: find out by what metrics these connections are formed
-        nest.Connect(inp_pop.pop, self.circuits[0].get_node_collection())
-        #print(nest.GetConnections(inp_pop.pop))
+        syn_dict = {}
+        for circuit in self.circuits:
+            nest.Connect(inp_pop.pop, circuit.get_node_collection())
+        print(nest.GetConnections(inp_pop.pop))
+        print(len(nest.GetConnections(inp_pop.pop)))
 
-    def visualize_circuits(self):
-        """Creates a 2D visualization showing the number of neurons k per WTA circuit on the grid"""
+    def visualize_circuits(self) -> None:
+        """Creates a **pcolormesh** visualizing the number of neurons k per WTA circuit on the grid"""
         data = self._get_circuit_grid()
 
         fig, ax = plt.subplots()
@@ -188,8 +196,30 @@ class Network(object):
         if self.show_figures:
             plt.show()
 
-    def visualize_connections(self, nc: NodeCollection):
-        """Visualizes all the outgoing connections from some node"""
+    def visualize_circuits_3d(self) -> None:
+        fig = plt.figure()
+        ax = plt.axes(projection="3d")
+
+        x = []
+        y = []
+        z = []
+        data = self._get_circuit_grid()
+        for i in range(len(self._get_circuit_grid())):
+            for j in range(len(self._get_circuit_grid()[i])):
+                x.append(j)
+                y.append(i)
+                z.append(data[i][j])
+
+        # Trimesh
+        ax.plot_trisurf(x, y, z, color='blue')
+        # Scatterplot
+        ax.scatter3D(x, y, z, c=z, cmap='cividis')
+        # Select Viewpoint
+        ax.view_init(30, -90)
+        plt.show()
+
+    def visualize_connections(self, nc: NodeCollection) -> None:
+        """Visualizes all the outgoing connections from some **NodeCollection** nc as a **pcolormesh**"""
         # Get List of X and Y coordinates of each target's position
         X = []
         Y = []
@@ -210,7 +240,6 @@ class Network(object):
         for i in range(len(X)):
             data[Y[i], X[i]] += 1
 
-        ########################################################
         fig, ax = plt.subplots()
         im = ax.imshow(data)
 
@@ -238,7 +267,7 @@ class Network(object):
             plt.show()
 
 
-def measure_node_collection(nc: NodeCollection) -> None:
+def measure_node_collection(nc: NodeCollection, **kwds) -> None:
     """Simulates given NodeCollection for t_sim and plots the recorded spikes and membrane potential"""
     multimeter = nest.Create('multimeter')
     multimeter.set(record_from=['V_m'])
@@ -246,7 +275,7 @@ def measure_node_collection(nc: NodeCollection) -> None:
     nest.Connect(multimeter, nc)
     nest.Connect(nc, spikerecorder)
 
-    nest.Simulate(2000.0)
+    nest.Simulate(kwds.get('t_sim', 2000.0))
 
     dmm = multimeter.get()
     Vms = dmm["events"]["V_m"]
@@ -261,19 +290,22 @@ def measure_node_collection(nc: NodeCollection) -> None:
     plt.show()
 
 
-grid = Network()
-grid.visualize_circuits()
-grid.form_connections()
-# grid.visualize_connections(grid.circuits[0].get_node_collection())
+if __name__ == '__main__':
+    grid = Network()
+    grid.visualize_circuits()
+    grid.visualize_circuits_3d()
+    grid.form_connections()
+    # grid.visualize_connections(grid._get_node_collections(slice(1, 5)))
 
-# grid._get_node_collections(slice(1, 3))
+    # grid._get_node_collections(slice(1, 3))
 
-inpPop = InputPopulation(10)
-grid.connect_input(inpPop)
+    inpPop = InputPopulation(50, I_e=188.0)  # TODO: replace with spikegenerator
+    # print(inpPop.pop.get())
+    # grid.connect_input(inpPop)
+    # measure_node_collection(inpPop.pop)
 
-# measure_node_collection(grid.circuits[0].get_node_collection())
-# measure_node_collection(inpPop.pop)
+    # measure_node_collection(grid._get_node_collections(slice(1, 5)), t_sim=100000.0)
+    measure_node_collection(grid._get_node_collections(slice(1, 5)))
 
-
-# (TODO): version of visualize_connections where the percentage of connected neurons is given instead of total amount
-# TODO: implement lateral inhibition
+    # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
+    # TODO: implement lateral inhibition
