@@ -4,7 +4,7 @@ matplotlib.use('agg')
 import pylab
 import sys
 
-from legacy.sem_liquid import SEMLiquidParams, SEMLiquid
+from sem_liquid import SEMLiquidParams, SEMLiquid
 
 
 def sem_liquid_pattern4(seed=None, *p):

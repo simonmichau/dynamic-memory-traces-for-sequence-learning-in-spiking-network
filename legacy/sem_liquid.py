@@ -9,7 +9,7 @@ import logging
 import copy
 import mdp
 from sem_recorder import *
-from legacy.sem_input import *
+from sem_input import *
 
 # from sem import *
 # from enthought.mayavi import mlab
@@ -463,7 +463,7 @@ class SEMLiquid(object):
             self.udyn = self.rdyn = 1
 
     def initialize_random_weights(self):
-        tmp = numpy.random.rand(self.tsize + self.nReadouts, self.nInputs + self.tsize) * self.W_map
+        tmp = numpy.random.rand(self.tsize + self.nReadouts, self.nInputs + self.tsize) * self.W_map  # randomly draws values for all entries of W_map from [0,1)
         tmp[tmp > 0] = numpy.log(tmp[tmp > 0])
         self.W[:, 1:] = tmp
 

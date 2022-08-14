@@ -37,5 +37,6 @@
 
 
 .idea/
-data/
+legacy/data/
 legacy/sandbox.py
+nest/sandbox.py

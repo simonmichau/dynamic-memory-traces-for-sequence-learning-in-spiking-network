@@ -11,7 +11,7 @@ import mdp
 #from enthought.mayavi import mlab
 
 from sem_recorder import *
-from legacy.sem_input import *
+from sem_input import *
 #from sem import *
 
 class SEMLiquidParams(object):

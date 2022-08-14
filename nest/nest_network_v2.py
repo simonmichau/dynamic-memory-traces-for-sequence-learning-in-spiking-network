@@ -75,28 +75,40 @@ class InputGenerator(object):
         # Create noise
         self.noise(target_network)
 
+        self.generate_patterns(1, 50, 5)  # test
+
     def noise(self, target_network):
         # Create n poisson input channels with 2Hz firing rate
-        poisson_in = nest.Create('poisson_generator', self.n, params={'rate': self.rNoise})
+        poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.rNoise})
         # Create parrot_neuron and connect poisson generators to it
         parrots = nest.Create('parrot_neuron', self.n)
-        nest.Connect(poisson_in, parrots, 'one_to_one')
+        nest.Connect(poisson_gens, parrots, 'one_to_one')
         # Connect parrots to target network with random weights
         conn_dict = {
             'rule': 'pairwise_bernoulli',
             'allow_autapses': False,
             'p': 1.0
         }
-        syn_dict = {"weight": nest.random.uniform()}  # TODO: set init weight
+        syn_dict = {"weight": -nest.random.uniform()}  # TODO: set init weight
         nest.Connect(parrots, target_network.get_node_collections(), conn_dict, syn_dict)
 
-    def configure_spikes(self):
+        print(nest.GetConnections(parrots))
+
+    def configure_spikes(self, spike_duration, frequency, t_start):
+        # Create n spikegenerators with 5Hz firing rate
         pass
 
+    def generate_patterns(self, nPatterns, tPatterns, rin):
+        # TODO: Create an array with one element for each pattern, this element contains all the spike_times
+        #  lists of the spike_generators
+        # rin: input firing rate |
 
-class ReadoutPopulation(object):
-    def __init__(self):
-        pass
+        # TODO: uniformly randomly distribute the expected number of spikes over the duration of the pattern
+        expected_spikes = int(rin*10e-3 * tPatterns)  # expected number of spikes per spike generator
+        # generate list of possible spike times in duration of pattern [tic_list]
+        tic_list = list(range(1, tPatterns+1))
+        # sample randomly k elements from tic_list without replacement
+        spikes = random.sample(tic_list, k=expected_spikes)
 
 
 class Network(object):
@@ -157,7 +169,7 @@ class Network(object):
         for m in range(self.m):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
-                nc = nest.Create('iaf_psc_exp', K, params={'I_e': 188.0,  # 0.0
+                nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
                                                            'tau_syn_ex': self.tau_rise,
                                                            'tau_m': self.tau_decay
                                                            })
@@ -171,9 +183,7 @@ class Network(object):
             'allow_autapses': False,
             'p': 1.0
         }
-        syn_dict = {
-            "weight": nest.random.uniform(0.0, 1.0)  # TODO: set init weight range
-        }  # TODO: implement synapse model with STP and STDP
+        syn_dict = {"weight": np.log(np.random.rand())}  # TODO: implement synapse model with STP and STDP
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
         for i in range(len(self.circuits)):
@@ -184,7 +194,7 @@ class Network(object):
                                   + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
                     conn_dict['p'] = self.lam * math.exp(-self.lam * d)
                     nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(),
-                                 conn_dict, syn_dict)
+                                 conn_dict, {"weight": np.log(np.random.rand())})
 
     def visualize_circuits(self) -> None:
         """Creates a **pcolormesh** visualizing the number of neurons k per WTA circuit on the grid"""
@@ -315,18 +325,18 @@ if __name__ == '__main__':
     grid = Network()
     grid.visualize_circuits()
     # grid.visualize_circuits_3d()
-    # grid.form_connections()
+    grid.form_connections()
     # grid.visualize_connections(grid.get_node_collections(slice(1, 5)))
-
     # grid.get_node_collections(slice(1, 3))
 
-    inp = InputGenerator(grid, I_e=188.0)  # TODO: replace with spikegenerator
+    inp = InputGenerator(grid)
     # print(inp.pop.get())
     # grid.connect_input(inp)
     # measure_node_collection(inp.pop)
 
     # measure_node_collection(grid.get_node_collections(slice(1, 5)), t_sim=100000.0)
-    # measure_node_collection(grid.get_node_collections(slice(0, 2)))
+    measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
+    measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
     # TODO: implement lateral inhibition
