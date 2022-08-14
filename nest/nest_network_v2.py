@@ -89,10 +89,15 @@ class InputGenerator(object):
             'allow_autapses': False,
             'p': 1.0
         }
-        syn_dict = {"weight": -nest.random.uniform()}  # TODO: set init weight
-        nest.Connect(parrots, target_network.get_node_collections(), conn_dict, syn_dict)
-
-        print(nest.GetConnections(parrots))
+        # Establish connections
+        nest.Connect(parrots, target_network.get_node_collections(), conn_dict)
+        # Update connection weights with random values
+        conn = nest.GetConnections(parrots)
+        weight_list = []
+        for i in range(len(conn)):
+            weight_list.append(np.log(np.random.rand()))
+        print(weight_list)
+        conn.set(weight=weight_list)
 
     def configure_spikes(self, spike_duration, frequency, t_start):
         # Create n spikegenerators with 5Hz firing rate
