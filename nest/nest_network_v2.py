@@ -41,79 +41,76 @@ class InputGenerator(object):
     def __init__(self, target_network, **kwds):
         # Number of input channels
         self.n = target_network.nInputs
+        # Target network
+        self.target_network = target_network
         # Poisson firing rate of the noise (in Hz)
         self.rNoise = kwds.get('rNoise', 2)
         # Rise and decay time constant for EPSP (in ms)
         self.tau_rise = kwds.get('tau_rise', 2)
         self.tau_decay = kwds.get('tau_decay', 20)
-        # Resting membrane potential (in mV)
-        self.E_L = kwds.get('E_L', -70.0)
-        # Capacity of the membrane (in pF)
-        self.C_m = kwds.get('C_m', 250.0)
-        # Duration of refractory period (V_m = V_reset) (in ms)
-        self.t_ref = kwds.get('t_ref', 2.0)
-        # Membrane potential (in mV)
-        self.V_m = kwds.get('V_m', -70.0)
-        # Spike threshold (in mV)
-        self.V_th = kwds.get('V_th', -55.0)
-        # Reset membrane potential after a spike (in mV)
-        self.V_reset = kwds.get('V_reset', -70.0)
-        # Constant input current
-        self.I_e = kwds.get('I_e', 0.0)
+        # Dictionary of stored patterns
+        self.pattern_dict = {}
 
-        # Actual input population
-        self.pop = nest.Create('iaf_psc_exp', self.n, params={'E_L': self.E_L,
-                                                              'C_m': self.C_m,
-                                                              'tau_syn_ex': self.tau_rise,
-                                                              'tau_m': self.tau_decay,
-                                                              't_ref': self.t_ref,
-                                                              'V_m': self.V_m,
-                                                              'V_th': self.V_th,
-                                                              'V_reset': self.V_reset,
-                                                              'I_e': self.I_e
-                                                              })
         # Create noise
-        self.noise(target_network)
+        self.noise()
 
-        self.generate_patterns(1, 50, 5)  # test
+        self.generate_pattern_dict(2, 50.0, 5.0)
 
-    def noise(self, target_network):
-        # Create n poisson input channels with 2Hz firing rate
+    def noise(self):
+        """Creates poisson noise for a given **target_network**"""
+        # Create n poisson input channels with firing rate rNoise
         poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.rNoise})
-        # Create parrot_neuron and connect poisson generators to it
+        # Create n parrot_neuron and connect one poisson generator to each of it
         parrots = nest.Create('parrot_neuron', self.n)
         nest.Connect(poisson_gens, parrots, 'one_to_one')
-        # Connect parrots to target network with random weights
+        # Connect parrots to target network
         conn_dict = {
             'rule': 'pairwise_bernoulli',
             'allow_autapses': False,
             'p': 1.0
         }
-        # Establish connections
-        nest.Connect(parrots, target_network.get_node_collections(), conn_dict)
-        # Update connection weights with random values
+        nest.Connect(parrots, self.target_network.get_node_collections(), conn_dict)
+        # Update connection weights to random values
         conn = nest.GetConnections(parrots)
         weight_list = []
         for i in range(len(conn)):
             weight_list.append(np.log(np.random.rand()))
-        print(weight_list)
         conn.set(weight=weight_list)
 
-    def configure_spikes(self, spike_duration, frequency, t_start):
-        # Create n spikegenerators with 5Hz firing rate
-        pass
+    def generate_poisson_spiketimes(self, t_duration, rate) -> list:
+        """Generates a list of poisson generated spike times for a given duration **t_duration** (in ms)
+        and firing rate **rate** (in Hz) """
+        n = t_duration * rate * 1e-3  # expected number of spikes in [0, t_duration)
+        scale = 1 / (rate * 1e-3)  # expected time between spikes
+        isi = np.random.exponential(scale, int(np.ceil(n)))  # list of ceil(n) isi's
+        spikes = np.add.accumulate(isi)
+        # Hypothetical position of t_duration in spikes list
+        i = np.searchsorted(spikes, t_duration)
 
-    def generate_patterns(self, nPatterns, tPatterns, rin):
-        # TODO: Create an array with one element for each pattern, this element contains all the spike_times
-        #  lists of the spike_generators
-        # rin: input firing rate |
+        # Add or remove spikes
+        extra_spikes = []
+        if i == len(spikes):
+            t_last = spikes[-1]
+            while True:
+                t_last += np.random.exponential(scale, 1)[0]
+                if t_last >= t_duration:
+                    break
+                else:
+                    extra_spikes.append(t_last)
+            spikes = np.concatenate((spikes, extra_spikes))
+        else:
+            # Cutoff spike times outside of spike duration
+            spikes = np.resize(spikes, (i,))  # spikes[:i]
+        return spikes.tolist()
 
-        # TODO: uniformly randomly distribute the expected number of spikes over the duration of the pattern
-        expected_spikes = int(rin*10e-3 * tPatterns)  # expected number of spikes per spike generator
-        # generate list of possible spike times in duration of pattern [tic_list]
-        tic_list = list(range(1, tPatterns+1))
-        # sample randomly k elements from tic_list without replacement
-        spikes = random.sample(tic_list, k=expected_spikes)
+    def create_pattern_dict(self, n_patterns: int, pattern_durations, pattern_rate) -> None:
+        """pattern_durations (in ms), pattern_rate (in Hz)"""
+        self.pattern_dict = {}
+        for i in range(n_patterns):
+            pattern = []
+            for j in range(self.n):
+                pattern.append(self.generate_poisson_spiketimes(pattern_durations, pattern_rate))
+            self.pattern_dict[i] = pattern
 
 
 class Network(object):
@@ -134,7 +131,6 @@ class Network(object):
         self.lam = kwds.get('lambda', 0.088)
         # simulation time (in ms)
         self.t_sim = kwds.get('t_sim', 2000.0)
-
         # List containing all WTA circuits
         self.circuits = self.create_grid()
 
@@ -149,10 +145,14 @@ class Network(object):
             data[circuit.get_pos()[1], circuit.get_pos()[0]] = circuit.get_size()
         return data
 
-    def get_node_collections(self, s=None) -> NodeCollection | None:
+    def get_node_collections(self, slice_min=None, slice_max=None) -> NodeCollection | None:
         """Return a slice of **self.circuits** as a **NodeCollection**"""
-        if s is None:  # Set default parameter for s
-            s = slice(0, len(self.circuits) + 1)
+        if slice_min is None:
+            slice_min = 0
+        if slice_max is None:
+            slice_max = len(self.circuits) + 1
+        s = slice(slice_min, slice_max)
+
         id_list = []
         for circuit in self.circuits[s]:
             id_list += circuit.get_node_collection().get()['global_id']
@@ -175,6 +175,7 @@ class Network(object):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
                 nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
+                                                           'V_th': -67.0,
                                                            'tau_syn_ex': self.tau_rise,
                                                            'tau_m': self.tau_decay
                                                            })
@@ -311,37 +312,41 @@ def measure_node_collection(nc: NodeCollection, **kwds) -> None:
     nest.Connect(multimeter, nc)
     nest.Connect(nc, spikerecorder)
 
-    nest.Simulate(kwds.get('t_sim', 2000.0))
+    nest.Simulate(kwds.get('t_sim', 300.0))
 
     dmm = multimeter.get()
     Vms = dmm["events"]["V_m"]
     ts = dmm["events"]["times"]
-    # plt.figure(1)
-    plt.plot(ts, Vms)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    ax1.plot(ts, Vms)
+    ax1.set_ylabel("Membrane potential (mV)")
+
     dSD = spikerecorder.get("events")
     evs = dSD["senders"]
     ts = dSD["times"]
-    # plt.figure(2)
-    plt.plot(ts, evs, ".")
+
+    ax2.plot(ts, evs, ".", color='orange')
+    ax2.set_xlabel("time (ms)")
+    ax2.set_ylabel("spike events")
+
     plt.show()
 
 
 if __name__ == '__main__':
     grid = Network()
-    grid.visualize_circuits()
+    # grid.visualize_circuits()
     # grid.visualize_circuits_3d()
     grid.form_connections()
-    # grid.visualize_connections(grid.get_node_collections(slice(1, 5)))
-    # grid.get_node_collections(slice(1, 3))
+    # grid.visualize_connections(grid.get_node_collections(1, 2))
+    # grid.get_node_collections(1, 5)
 
     inp = InputGenerator(grid)
-    # print(inp.pop.get())
-    # grid.connect_input(inp)
-    # measure_node_collection(inp.pop)
 
-    # measure_node_collection(grid.get_node_collections(slice(1, 5)), t_sim=100000.0)
-    measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
-    measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
+    # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
+    # measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
+    # measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
+
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
     # TODO: implement lateral inhibition
