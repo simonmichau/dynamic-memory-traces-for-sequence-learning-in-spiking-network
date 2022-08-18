@@ -1,4 +1,6 @@
 import matplotlib
+from matplotlib import pyplot as plt
+
 matplotlib.use('Agg')
 import timeit
 import scipy.linalg
@@ -275,6 +277,12 @@ class SEMLiquid(object):
         self.u_inp = numpy.zeros(self.tsize+self.nReadouts)
         # membrane potential resulting only from recurrent connections
         self.u_rec = numpy.zeros(self.tsize+self.nReadouts)
+        # trace of membrane potentials during simulation (for plotting)
+        self.u_trace = []
+        # trace of input membrane potentials during simulation (for plotting)
+        self.u_inp_trace = []
+        self.epsp_trace = []
+        self.epsp2_trace = []
         # temporary variables for storing postsynaptic epsp traces
         if self.use_multiple_synapses:
             self.epsp = numpy.zeros((self.tsize+self.nReadouts, self.nInputs+self.tsize))
@@ -345,7 +353,7 @@ class SEMLiquid(object):
         self.sub_time = 20
         self.isppt = True
         self.ms = 3
-        self.plot_weights = False
+        self.plot_weights = True  # False
 
         self.filename = 'sem_liquid_v2.py'
         self.outputdir = os.environ["PWD"] + '/data/'
@@ -360,7 +368,7 @@ class SEMLiquid(object):
             os.makedirs(self.outputdir)
         except:
             pass
-        shutil.copy(self.filename,self.outputdir+self.filename)
+        # shutil.copy(self.filename,self.outputdir+self.filename)
         logging.basicConfig(filename=self.outputdir+"output.log",
                             level=logging.DEBUG,
                             format="%(asctime)s %(message)s")
@@ -653,6 +661,9 @@ class SEMLiquid(object):
     # this is the main method that advances the simulation by one time step
     # x is the input, t is the optional target vector for the readout WTAs
     def process_input(self, x, t=None):
+        self.u_inp_trace.append(x)
+        self.epsp_trace.append(self.epsp)
+        self.epsp2_trace.append(self.epsp2)
         if t is not None:
             assert(len(t) == self.nReadouts)
         else:
@@ -882,6 +893,7 @@ class SEMLiquid(object):
                 #t = numpy.atleast_1d(t)
                 #t = None
             self.process_input(x, t)
+            self.u_trace.append(self.u)
             if (step+1)%self.dt_out==0:
                 ratio = float(step+1)/float(nsteps)
                 time = timeit.default_timer() - start_time
@@ -1045,6 +1057,20 @@ class SEMLiquid(object):
                 pylab.title('readout weights')
                 pylab.xlabel('time [s]')
                 self.save_figure(self.outputdir+'%s_rdt_weights.%s' % (savestrprefix,self.ext))
+        # Plot membrane potentials during simulation
+        #print self.u_trace
+        plt_list0 = []
+        plt_list1 = []
+        plt_list2 = []
+        print(len(self.u_inp_trace[0]))
+        for i in range(len(self.epsp_trace)):
+            plt_list0.append(self.epsp_trace[i][0] * self.u_inp_trace[i][0])
+            plt_list1.append(self.epsp_trace[i][10] * self.u_inp_trace[i][10])
+            plt_list2.append(self.epsp_trace[i][20] * self.u_inp_trace[i][20])
+        plt.plot(plt_list0)
+        plt.plot(plt_list1)
+        plt.plot(plt_list2)
+        plt.show()
 
     def trainPCA(self, states):
         print "training PCA..."
@@ -1288,7 +1314,7 @@ class SEMLiquid(object):
             #if self.task=='multi' and (step%self.nstepsrec)==0:
                 #self.reset_epsp()
             #self.step += 1
-            self.update_parameters_test(step, nsteps)
+            self.update_parameters_test(step, nsteps)  # just passes, ignore
             if not self.use_inputs:
                 x = numpy.zeros(self.nInputs, dtype='int')
             else:
@@ -1555,6 +1581,23 @@ class SEMLiquid(object):
         if do_save:
             d.close()
 
+        # Plot Input
+        fig = plt.figure()
+        fig, ax = plt.subplots()
+        plt_list = []
+        for i in range(len(self.epsp_trace)):
+            # Get maximum spike input at time i and append to list
+            max_inp = 0.0
+            for j in range(len(self.u_inp_trace[0])):
+                if self.epsp_trace[i][j] * self.u_inp_trace[i][j] > max_inp:
+                    max_inp = self.epsp_trace[i][j] * self.u_inp_trace[i][j]
+            if max_inp > 0.0:
+                plt_list.append(max_inp)
+        ax.plot(plt_list)
+        #plt.plot(plt_list1)
+        #plt.plot(plt_list2)
+        plt.show()
+
         return X,I,perf
 
     def save_figure(self, savestr):
@@ -1692,7 +1735,7 @@ def sem_liquid_pattern2(seed=None, *p):
 
 # returns liquid computing model and test times for a given seed (seed) and a number of parameters (*p)
 def sem_liquid_pattern1(seed=None, *p):
-    strain = 100  # training set length (seconds)
+    strain = 5  # 100  # training set length (seconds)
     # strain = 10
     stest_train = 3
     stest = 3
