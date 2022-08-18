@@ -1,11 +1,11 @@
 import random
 import math
-
 import numpy as np
 import matplotlib.pyplot as plt
 import nest
 from nest.lib.hl_api_types import *
 
+from nest_utils import *
 
 nest.ResetKernel()
 
@@ -45,19 +45,31 @@ class InputGenerator(object):
         self.target_network = target_network
         # Poisson firing rate of the noise (in Hz)
         self.rNoise = kwds.get('rNoise', 2)
-        # Rise and decay time constant for EPSP (in ms)
-        self.tau_rise = kwds.get('tau_rise', 2)
-        self.tau_decay = kwds.get('tau_decay', 20)
+        # Input firing rate
+        self.r_input = kwds.get('r_input', 5)
+        # Number of patterns
+        self.n_patterns = kwds.get('n_patterns', 2)
+        # Pattern sequences (contains lists of pattern sequences; their presentation order is determined [elsewhere])
+        self.pattern_sequences = [[0], [1]]
+        # Pattern durations
+        self.t_pattern = kwds.get('t_pattern', [400.0] * self.n_patterns)
+        # Range from which the noise phase duration is randomly chosen from (in ms)
+        self.t_noise_range = kwds.get('t_noise_range', [100.0, 500.0])
         # Dictionary of stored patterns
-        self.pattern_dict = {}
+        self.pattern_dict = dict()
+
+        self.use_noise = kwds.get('use_noise', True)
+        self.use_input = kwds.get('use_input', True)
 
         # Create noise
-        self.noise()
+        if self.use_noise:
+            self.generate_noise()
 
-        self.generate_pattern_dict(2, 50.0, 5.0)
+        if self.use_input:
+            self.generate_input(1000.0)
 
-    def noise(self):
-        """Creates poisson noise for a given **target_network**"""
+    def generate_noise(self) -> None:
+        """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
         # Create n poisson input channels with firing rate rNoise
         poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.rNoise})
         # Create n parrot_neuron and connect one poisson generator to each of it
@@ -74,43 +86,83 @@ class InputGenerator(object):
         conn = nest.GetConnections(parrots)
         weight_list = []
         for i in range(len(conn)):
-            weight_list.append(np.log(np.random.rand()))
+            weight_list.append(-np.log(np.random.rand()))
         conn.set(weight=weight_list)
 
-    def generate_poisson_spiketimes(self, t_duration, rate) -> list:
-        """Generates a list of poisson generated spike times for a given duration **t_duration** (in ms)
-        and firing rate **rate** (in Hz) """
-        n = t_duration * rate * 1e-3  # expected number of spikes in [0, t_duration)
-        scale = 1 / (rate * 1e-3)  # expected time between spikes
-        isi = np.random.exponential(scale, int(np.ceil(n)))  # list of ceil(n) isi's
-        spikes = np.add.accumulate(isi)
-        # Hypothetical position of t_duration in spikes list
-        i = np.searchsorted(spikes, t_duration)
+    def create_patterns(self) -> None:
+        """Creates poisson patterns according to the InputGenerator's
 
-        # Add or remove spikes
-        extra_spikes = []
-        if i == len(spikes):
-            t_last = spikes[-1]
-            while True:
-                t_last += np.random.exponential(scale, 1)[0]
-                if t_last >= t_duration:
-                    break
-                else:
-                    extra_spikes.append(t_last)
-            spikes = np.concatenate((spikes, extra_spikes))
-        else:
-            # Cutoff spike times outside of spike duration
-            spikes = np.resize(spikes, (i,))  # spikes[:i]
-        return spikes.tolist()
+        - number of patterns **n_patterns**,
+        - pattern durations **t_pattern** (in ms),
+        - pattern firing rate **r_input** (in Hz)
 
-    def create_pattern_dict(self, n_patterns: int, pattern_durations, pattern_rate) -> None:
-        """pattern_durations (in ms), pattern_rate (in Hz)"""
-        self.pattern_dict = {}
-        for i in range(n_patterns):
+        and stores them in **pattern_dict**."""
+        self.pattern_dict = dict()
+        for i in range(self.n_patterns):
             pattern = []
             for j in range(self.n):
-                pattern.append(self.generate_poisson_spiketimes(pattern_durations, pattern_rate))
+                pattern.append(generate_poisson_spiketrain(self.t_pattern[i], self.r_input))
             self.pattern_dict[i] = pattern
+
+    def generate_input(self, duration, t_origin=0.0):  # pattern_sequence
+        """Generates Input for a given duration. Needs to be run for every simulation
+
+        - duration: duration of input (in ms)
+        -
+        """
+        self.create_patterns()
+        # create n spike_generators and connect them to network TODO: with random weights?
+        spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
+                                                                          'origin': t_origin})
+        nest.Connect(spike_generators, self.target_network.get_node_collections())
+
+        # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
+        t = 0
+        spiketrain_list = [[]] * self.n  # list to store the spiketrain of each input channel
+        current_pattern_id = self.pattern_sequences[0][0]  # TODO: REPLACE BY SOMETHING SMARTER
+        while t < duration:
+            # Randomly draw the duration of the noise phase
+            t_noise_phase = self.t_noise_range[0] + np.random.rand()*(self.t_noise_range[1]-self.t_noise_range[0])
+
+            # append pattern spike times to spiketrain list
+            for i in range(self.n):  # iterate over input channels
+                st = np.add(t+t_noise_phase, self.pattern_dict[current_pattern_id][i])
+                spiketrain_list[i] = spiketrain_list[i] + st.tolist()
+            t += t_noise_phase + self.t_pattern[current_pattern_id]
+            # TODO: pick next pattern to present
+            # current_pattern_id = get_next_pattern_id()
+        # TODO: cutoff values over t=origin+duration?
+
+        # Set the spike_times of the spike_generators to spiketrain_list
+        for i in range(self.n):
+            print(self.pattern_dict[0][i])
+            spike_generators[i].set({'spike_times': spiketrain_list[i]})
+        # TODO: visualize spiketrains firing
+        self.visualize_spiketrain(spiketrain_list)
+        # Connect spike generators to target network
+        nest.Connect(spike_generators, self.target_network.get_node_collections())
+
+    def visualize_spiketrain(self, st):
+        """Visualizes a given spiketrain"""
+        co = ['b', 'g', 'r', 'y', 'c', 'm', 'k']
+        fig = plt.figure()
+        fig, ax = plt.subplots()
+        for i in range(len(st)):
+            ax.scatter(st[i], [i]*len(st[i]), c=co[i % len(co)])
+            #ax.plot(st[i], [i]*len(st[i]), ".", color='orange')
+        ax.set_xlabel("time (ms)")
+        ax.set_ylabel("Input channels")
+        ax.axis([0, 2000, -1, self.n])
+
+    def fire(self):
+        id_list = []
+        for i in range(self.n):
+            print(self.pattern_dict[0][i])
+            generator = nest.Create('spike_generator', params={"spike_times": self.pattern_dict[0][i],
+                                                               "allow_offgrid_times": True})
+            id_list.append(generator.get()['global_id'])
+        spike_generators = nest.NodeCollection(id_list)
+        nest.Connect(spike_generators, self.target_network.get_node_collections())
 
 
 class Network(object):
@@ -189,7 +241,7 @@ class Network(object):
             'allow_autapses': False,
             'p': 1.0
         }
-        syn_dict = {"weight": np.log(np.random.rand())}  # TODO: implement synapse model with STP and STDP
+        syn_dict = {"weight": -np.log(np.random.rand())}  # TODO: implement synapse model with STP and STDP
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
         for i in range(len(self.circuits)):
@@ -200,7 +252,7 @@ class Network(object):
                                   + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
                     conn_dict['p'] = self.lam * math.exp(-self.lam * d)
                     nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(),
-                                 conn_dict, {"weight": np.log(np.random.rand())})
+                                 conn_dict, {"weight": -np.log(np.random.rand())})
 
     def visualize_circuits(self) -> None:
         """Creates a **pcolormesh** visualizing the number of neurons k per WTA circuit on the grid"""
@@ -304,7 +356,7 @@ class Network(object):
             plt.show()
 
 
-def measure_node_collection(nc: NodeCollection, **kwds) -> None:
+def measure_node_collection(nc: NodeCollection, t_sim=300.0) -> None:
     """Simulates given NodeCollection for t_sim and plots the recorded spikes and membrane potential"""
     multimeter = nest.Create('multimeter')
     multimeter.set(record_from=['V_m'])
@@ -312,7 +364,8 @@ def measure_node_collection(nc: NodeCollection, **kwds) -> None:
     nest.Connect(multimeter, nc)
     nest.Connect(nc, spikerecorder)
 
-    nest.Simulate(kwds.get('t_sim', 300.0))
+    # run_simulation()
+    nest.Simulate(t_sim)
 
     dmm = multimeter.get()
     Vms = dmm["events"]["V_m"]
@@ -344,8 +397,8 @@ if __name__ == '__main__':
     inp = InputGenerator(grid)
 
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
-    # measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
-    # measure_node_collection(grid.get_node_collections(), t_sim=1000.0)
+    measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
+    measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
 
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
