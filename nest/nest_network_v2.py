@@ -86,8 +86,8 @@ class InputGenerator(object):
         if self.use_noise:
             self.generate_noise()
 
-        if self.use_input:
-            self.generate_input(5000.0)
+        #if self.use_input:
+        #    self.generate_input(5000.0)
 
         #self.visualize_spiketrain(self.pattern_dict[0], 500)
         #self.visualize_spiketrain(self.pattern_dict[1], 500)
@@ -153,16 +153,13 @@ class InputGenerator(object):
                 st = np.add(t+t_noise_phase, self.pattern_dict[current_pattern_id][i])
                 spiketrain_list[i] = spiketrain_list[i] + st.tolist()
             t += t_noise_phase + self.t_pattern[current_pattern_id]
-            print("Pattern: ", current_pattern_id)
 
+            # Update the pattern to present next round
             current_pattern_id = self.get_next_pattern_id()
         # TODO: cutoff values over t=origin+duration?
         # Assign spiketrain_list to spike_generators
         for i in range(self.n):
             spike_generators[i].set({'spike_times': spiketrain_list[i]})
-
-        # Visualize
-        self.visualize_spiketrain(spiketrain_list, duration)
 
         # Connect spike generators to target network
         nest.Connect(spike_generators, self.target_network.get_node_collections())
@@ -385,36 +382,6 @@ class Network(object):
             plt.show()
 
 
-def measure_node_collection(nc: NodeCollection, t_sim=300.0) -> None:
-    """Simulates given NodeCollection for t_sim and plots the recorded spikes and membrane potential"""
-    multimeter = nest.Create('multimeter')
-    multimeter.set(record_from=['V_m'])
-    spikerecorder = nest.Create('spike_recorder')
-    nest.Connect(multimeter, nc)
-    nest.Connect(nc, spikerecorder)
-
-    # run_simulation()
-    nest.Simulate(t_sim)
-
-    dmm = multimeter.get()
-    Vms = dmm["events"]["V_m"]
-    ts = dmm["events"]["times"]
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    ax1.plot(ts, Vms)
-    ax1.set_ylabel("Membrane potential (mV)")
-
-    dSD = spikerecorder.get("events")
-    evs = dSD["senders"]
-    ts = dSD["times"]
-
-    ax2.plot(ts, evs, ".", color='orange')
-    ax2.set_xlabel("time (ms)")
-    ax2.set_ylabel("spike events")
-
-    plt.show()
-
-
 if __name__ == '__main__':
     grid = Network()
     # grid.visualize_circuits()
@@ -427,7 +394,9 @@ if __name__ == '__main__':
 
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
     measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
-    # measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
+    measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
 
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount

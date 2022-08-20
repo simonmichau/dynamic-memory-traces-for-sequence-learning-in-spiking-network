@@ -1,5 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import nest
+
+import nest_network_v2 as main
 
 
 def generate_poisson_spiketrain(t_duration, rate) -> list:
@@ -33,7 +36,43 @@ def generate_poisson_spiketrain(t_duration, rate) -> list:
     return spikes.tolist()
 
 
-def run_simulation(t):  # TODO: move to a location where it can access the InputGenerator object
-    # generate_input(t)
+def run_simulation(inpgen: main.InputGenerator, t):
+    """Pre-generates input patterns for duration of simulation and then runs the simulation"""
+    print(nest.biological_time)
+    inpgen.generate_input(t, t_origin=nest.biological_time)
     nest.Simulate(t)
 
+
+def measure_node_collection(nc: main.NodeCollection, inpgen: main.InputGenerator = None, t_sim=300.0) -> None:
+    """
+    Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes and membrane potential.
+    Requires an **InputGenerator** object for pattern input generation.
+    """
+    multimeter = nest.Create('multimeter')
+    multimeter.set(record_from=['V_m'])
+    spikerecorder = nest.Create('spike_recorder')
+    nest.Connect(multimeter, nc)
+    nest.Connect(nc, spikerecorder)
+
+    if inpgen is None:
+        nest.Simulate(t_sim)
+    else:
+        run_simulation(inpgen, t_sim)
+
+    dmm = multimeter.get()
+    Vms = dmm["events"]["V_m"]
+    ts = dmm["events"]["times"]
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    ax1.plot(ts, Vms)
+    ax1.set_ylabel("Membrane potential (mV)")
+
+    dSD = spikerecorder.get("events")
+    evs = dSD["senders"]
+    ts = dSD["times"]
+
+    ax2.plot(ts, evs, ".", color='orange')
+    ax2.set_xlabel("time (ms)")
+    ax2.set_ylabel("spike events")
+
+    plt.show()
