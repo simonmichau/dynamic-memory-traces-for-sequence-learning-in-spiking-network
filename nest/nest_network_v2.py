@@ -9,23 +9,15 @@ import nest
 from nest.lib.hl_api_types import *
 
 from nest_utils import *
+from pynestml.frontend.pynestml_frontend import generate_target
+
 
 nest.ResetKernel()
 nest.SetKernelStatus({"rng_seed": 5116})
-from pynestml.frontend.pynestml_frontend import generate_target
-
-#generate_target(input_path=os.environ["PWD"] + "/nestml_models/iaf_psc_exp_wta.nestml",
-#                target_platform="NEST",
-#                target_path=os.environ["PWD"] + "/nestml_target_example")
-#nest.Install("nestmlmodule")
-#n = nest.Create('iaf_psc_exp_wta')
-#rec = nest.Create('spike_recorder')
-#nest.Connect(n, rec)
-#nest.Simulate(3000.0)
-#print(len(rec.get('events')['times']))
 
 
 class WTACircuit:
+
     def __init__(self, nc: NodeCollection, pos):
         self.nc = nc
         self.pos = pos
@@ -53,19 +45,34 @@ class WTACircuit:
 
 
 class InputGenerator(object):
+    """
+    Contains all functionality to stimulate an assigned target network. Takes keywords:
+
+    - **r_noise** [Hz]: Noise firing rate
+    - **r_input** [Hz]: Input firing rate
+    - **n_patterns**: Number of different patterns
+    - **pattern_sequences**: List of pattern sequences
+    - **pattern_mode**: Mode of how patterns are sampled from *pattern_sequences* during presentation. Can be either
+      ``random_iterate`` or ``random_independent``
+    - **p_switch**: Switching probability for *pattern_mode*
+    - **t_pattern** [ms]: List containing the durations for all patterns
+    - **t_noise_range** [ms]: Range from which the noise phase duration is randomly chosen from
+    - **use_noise** [Bool]: States whether noise should be produced or not
+    - **use_input** [Bool]: States whether inputs should be produced or not
+    """
     def __init__(self, target_network, **kwds):
         # Number of input channels
         self.n = target_network.nInputs
         # Target network
         self.target_network = target_network
         # Poisson firing rate of the noise (in Hz)
-        self.rNoise = kwds.get('rNoise', 2)
-        # Input firing rate
+        self.r_noise = kwds.get('r_noise', 2)
+        # Input firing rate (in Hz)
         self.r_input = kwds.get('r_input', 5)
         # Number of patterns
         self.n_patterns = kwds.get('n_patterns', 3)
         # Pattern sequences (contains lists of pattern sequences; their presentation order is determined [elsewhere])
-        self.pattern_sequences = [[0, 1], [2]]
+        self.pattern_sequences = kwds.get('pattern_sequences', [[0, 1], [2]])
         # Pattern mode (can be either 'random_independent' or 'random_iterate')
         self.pattern_mode = kwds.get('pattern_mode', 'random_iterate')
         # Switching probability for pattern picking
@@ -76,6 +83,8 @@ class InputGenerator(object):
         self.t_noise_range = kwds.get('t_noise_range', [100.0, 500.0])
         # Dictionary of stored patterns
         self.pattern_dict = dict()
+        # Spiketrain for all n input channels
+        self.spiketrain = [[]] * self.n
         # Tuple storing the sequence index and the index of the current pattern
         self.current_pattern_index = [0, 0]
 
@@ -94,8 +103,8 @@ class InputGenerator(object):
 
     def generate_noise(self) -> None:
         """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
-        # Create n poisson input channels with firing rate rNoise
-        poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.rNoise})
+        # Create n poisson input channels with firing rate r_noise
+        poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.r_noise})
         # Create n parrot_neuron and connect one poisson generator to each of it
         parrots = nest.Create('parrot_neuron', self.n)
         nest.Connect(poisson_gens, parrots, 'one_to_one')
@@ -156,6 +165,9 @@ class InputGenerator(object):
 
             # Update the pattern to present next round
             current_pattern_id = self.get_next_pattern_id()
+
+        self.spiketrain = spiketrain_list
+
         # TODO: cutoff values over t=origin+duration?
         # Assign spiketrain_list to spike_generators
         for i in range(self.n):
@@ -252,6 +264,7 @@ class Network(object):
         for m in range(self.m):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
+                #nc = nest.Create('iaf_psc_exp_wta', K)
                 nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
                                                            'V_th': -67.0,
                                                            'tau_syn_ex': self.tau_rise,
@@ -383,6 +396,18 @@ class Network(object):
 
 
 if __name__ == '__main__':
+    # Setup nest
+    # print('iaf_psc_exp_wta' in nest.node_models())
+    #generate_target(input_path=os.environ["PWD"] + "/nestml_models/iaf_psc_exp_wta.nestml",
+    #                target_platform="NEST",
+    #                target_path=os.environ["PWD"] + "/nestml_target_example")
+    #nest.Install("nestmlmodule")
+    #n = nest.Create('iaf_psc_exp_wta')
+    #rec = nest.Create('spike_recorder')
+    #nest.Connect(n, rec)
+    #print(len(rec.get('events')['times']))
+
+    # Initialize Network etc.
     grid = Network()
     # grid.visualize_circuits()
     # grid.visualize_circuits_3d()
@@ -390,14 +415,13 @@ if __name__ == '__main__':
     # grid.visualize_connections(grid.get_node_collections(1, 2))
     # grid.get_node_collections(1, 5)
 
-    inp = InputGenerator(grid)
+    inp = InputGenerator(grid, n_patterns=2, pattern_sequences=[[0], [0, 1], [1]], use_noise=True, use_input=True)
 
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
+    # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
+    # measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
     measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
     measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
-
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
     # TODO: implement lateral inhibition
