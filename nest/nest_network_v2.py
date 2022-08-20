@@ -1,13 +1,28 @@
 import random
 import math
+from typing import Optional
+
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 import nest
 from nest.lib.hl_api_types import *
 
 from nest_utils import *
 
 nest.ResetKernel()
+nest.SetKernelStatus({"rng_seed": 5116})
+from pynestml.frontend.pynestml_frontend import generate_target
+
+#generate_target(input_path=os.environ["PWD"] + "/nestml_models/iaf_psc_exp_wta.nestml",
+#                target_platform="NEST",
+#                target_path=os.environ["PWD"] + "/nestml_target_example")
+#nest.Install("nestmlmodule")
+#n = nest.Create('iaf_psc_exp_wta')
+#rec = nest.Create('spike_recorder')
+#nest.Connect(n, rec)
+#nest.Simulate(3000.0)
+#print(len(rec.get('events')['times']))
 
 
 class WTACircuit:
@@ -48,15 +63,21 @@ class InputGenerator(object):
         # Input firing rate
         self.r_input = kwds.get('r_input', 5)
         # Number of patterns
-        self.n_patterns = kwds.get('n_patterns', 2)
+        self.n_patterns = kwds.get('n_patterns', 3)
         # Pattern sequences (contains lists of pattern sequences; their presentation order is determined [elsewhere])
-        self.pattern_sequences = [[0], [1]]
+        self.pattern_sequences = [[0, 1], [2]]
+        # Pattern mode (can be either 'random_independent' or 'random_iterate')
+        self.pattern_mode = kwds.get('pattern_mode', 'random_iterate')
+        # Switching probability for pattern picking
+        self.p_switch = kwds.get('p_switch', 1.0)
         # Pattern durations
-        self.t_pattern = kwds.get('t_pattern', [400.0] * self.n_patterns)
+        self.t_pattern = kwds.get('t_pattern', [300.0] * self.n_patterns)
         # Range from which the noise phase duration is randomly chosen from (in ms)
         self.t_noise_range = kwds.get('t_noise_range', [100.0, 500.0])
         # Dictionary of stored patterns
         self.pattern_dict = dict()
+        # Tuple storing the sequence index and the index of the current pattern
+        self.current_pattern_index = [0, 0]
 
         self.use_noise = kwds.get('use_noise', True)
         self.use_input = kwds.get('use_input', True)
@@ -66,7 +87,10 @@ class InputGenerator(object):
             self.generate_noise()
 
         if self.use_input:
-            self.generate_input(1000.0)
+            self.generate_input(5000.0)
+
+        #self.visualize_spiketrain(self.pattern_dict[0], 500)
+        #self.visualize_spiketrain(self.pattern_dict[1], 500)
 
     def generate_noise(self) -> None:
         """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
@@ -104,7 +128,7 @@ class InputGenerator(object):
                 pattern.append(generate_poisson_spiketrain(self.t_pattern[i], self.r_input))
             self.pattern_dict[i] = pattern
 
-    def generate_input(self, duration, t_origin=0.0):  # pattern_sequence
+    def generate_input(self, duration, t_origin=0.0):
         """Generates Input for a given duration. Needs to be run for every simulation
 
         - duration: duration of input (in ms)
@@ -119,7 +143,7 @@ class InputGenerator(object):
         # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
         t = 0
         spiketrain_list = [[]] * self.n  # list to store the spiketrain of each input channel
-        current_pattern_id = self.pattern_sequences[0][0]  # TODO: REPLACE BY SOMETHING SMARTER
+        current_pattern_id = self.pattern_sequences[self.current_pattern_index[0]][self.current_pattern_index[1]]
         while t < duration:
             # Randomly draw the duration of the noise phase
             t_noise_phase = self.t_noise_range[0] + np.random.rand()*(self.t_noise_range[1]-self.t_noise_range[0])
@@ -129,40 +153,45 @@ class InputGenerator(object):
                 st = np.add(t+t_noise_phase, self.pattern_dict[current_pattern_id][i])
                 spiketrain_list[i] = spiketrain_list[i] + st.tolist()
             t += t_noise_phase + self.t_pattern[current_pattern_id]
-            # TODO: pick next pattern to present
-            # current_pattern_id = get_next_pattern_id()
-        # TODO: cutoff values over t=origin+duration?
+            print("Pattern: ", current_pattern_id)
 
-        # Set the spike_times of the spike_generators to spiketrain_list
+            current_pattern_id = self.get_next_pattern_id()
+        # TODO: cutoff values over t=origin+duration?
+        # Assign spiketrain_list to spike_generators
         for i in range(self.n):
-            print(self.pattern_dict[0][i])
             spike_generators[i].set({'spike_times': spiketrain_list[i]})
-        # TODO: visualize spiketrains firing
-        self.visualize_spiketrain(spiketrain_list)
+
+        # Visualize
+        self.visualize_spiketrain(spiketrain_list, duration)
+
         # Connect spike generators to target network
         nest.Connect(spike_generators, self.target_network.get_node_collections())
 
-    def visualize_spiketrain(self, st):
+    def get_next_pattern_id(self) -> int:
+        # if sequence is not over just progress to next id in sequence
+        if not self.current_pattern_index[1] + 1 >= len(self.pattern_sequences[self.current_pattern_index[0]]):
+            self.current_pattern_index[1] += 1
+        else:
+            # if sequence is over pick new sequence from pattern_sequences using rules
+            if self.pattern_mode == 'random_independent':
+                print("Error: random_independent switching mode not implemented yet")  # TODO
+            elif self.pattern_mode == 'random_iterate':
+                # with probability p_switch move on to the next sequence/repeat the current sequence with 1-p_switch
+                if np.random.rand() <= self.p_switch:
+                    self.current_pattern_index[0] = (self.current_pattern_index[0]+1) % len(self.pattern_sequences)
+                self.current_pattern_index[1] = 0  # reset index to beginning of sequence
+        return self.pattern_sequences[self.current_pattern_index[0]][self.current_pattern_index[1]]
+
+    def visualize_spiketrain(self, st, t_max):
         """Visualizes a given spiketrain"""
-        co = ['b', 'g', 'r', 'y', 'c', 'm', 'k']
         fig = plt.figure()
         fig, ax = plt.subplots()
         for i in range(len(st)):
-            ax.scatter(st[i], [i]*len(st[i]), c=co[i % len(co)])
-            #ax.plot(st[i], [i]*len(st[i]), ".", color='orange')
+            ax.scatter(st[i], [i]*len(st[i]), color=(i/(len(st)), 0.0, i/(len(st))))
+            # ax.plot(st[i], [i]*len(st[i]), ".", color='orange')
         ax.set_xlabel("time (ms)")
         ax.set_ylabel("Input channels")
-        ax.axis([0, 2000, -1, self.n])
-
-    def fire(self):
-        id_list = []
-        for i in range(self.n):
-            print(self.pattern_dict[0][i])
-            generator = nest.Create('spike_generator', params={"spike_times": self.pattern_dict[0][i],
-                                                               "allow_offgrid_times": True})
-            id_list.append(generator.get()['global_id'])
-        spike_generators = nest.NodeCollection(id_list)
-        nest.Connect(spike_generators, self.target_network.get_node_collections())
+        ax.axis([0, t_max, -1, self.n])
 
 
 class Network(object):
@@ -197,7 +226,7 @@ class Network(object):
             data[circuit.get_pos()[1], circuit.get_pos()[0]] = circuit.get_size()
         return data
 
-    def get_node_collections(self, slice_min=None, slice_max=None) -> NodeCollection | None:
+    def get_node_collections(self, slice_min=None, slice_max=None) -> Optional[NodeCollection]:
         """Return a slice of **self.circuits** as a **NodeCollection**"""
         if slice_min is None:
             slice_min = 0
@@ -210,7 +239,7 @@ class Network(object):
             id_list += circuit.get_node_collection().get()['global_id']
         return nest.NodeCollection(id_list)
 
-    def get_pos_by_id(self, node_id: int) -> tuple | None:
+    def get_pos_by_id(self, node_id: int) -> Optional[tuple]:
         """Returns the position of the WTA circuit which contains the node with the given ID"""
         for i in self.circuits:
             if node_id in i.nc.get()['global_id']:
@@ -397,8 +426,8 @@ if __name__ == '__main__':
     inp = InputGenerator(grid)
 
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
-    measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
-    measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
+    measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
+    # measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
 
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount

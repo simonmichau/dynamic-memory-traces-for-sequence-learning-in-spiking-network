@@ -33,6 +33,7 @@ def generate_poisson_spiketrain(t_duration, rate) -> list:
     return spikes.tolist()
 
 
-def run_simulation(t):
-    # TODO: initialize input pattern somehow
+def run_simulation(t):  # TODO: move to a location where it can access the InputGenerator object
+    # generate_input(t)
     nest.Simulate(t)
+
