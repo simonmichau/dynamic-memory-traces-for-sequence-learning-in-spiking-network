@@ -1,0 +1,65 @@
+synapse stdp_stp:
+
+  state:
+    w real = 1. @nest::weight
+    u real = U  # facilitation
+    x real = 1.  # depression
+    a_pre real = 0.
+    a_post real = 0.
+  end
+
+  parameters:
+    #STP
+    U real = 0.04
+    tau_d ms = 500 ms           # depression timescale
+    tau_f ms = 2000 ms          # facilitation timescale
+
+    #STDP
+    d ms = 3. ms  @nest::delay  # !!! cannot have a variable called "delay"
+    tau_tr_pre ms = 15 ms       # presynaptic time constant
+    tau_tr_post ms = 30 ms      # postsynaptic time constant
+    Wmax real = 80.             # these must be set manually, and are equivalent to `total_in_xTOy` vars in brian
+    Wmin real = 0.              # this should remain 0
+    A_plus real = 0.48         # presynaptic amplitude
+    A_minus real = -0.24       # postsynaptic amplitude
+    connected real = 1.         # connection variable
+  end
+
+  equations:
+    u' = (U - u) / tau_f    # STP
+    x' = (1 - x) / tau_d    # STP
+
+    a_pre' = -a_pre/tau_tr_pre      # STDP
+    a_post' = -a_post/tau_tr_post   # STDP
+  end
+
+  input:
+    pre_spikes nS <- spike
+    post_spikes nS <- spike
+  end
+
+  output: spike
+
+  # potentiation
+  onReceive(post_spikes):
+    a_post = connected * A_minus
+    w_ real = connected * (w + a_pre)
+    w = clip(w_, Wmin, Wmax)
+  end
+
+  onReceive(pre_spikes):
+    w_eff real = u * x * w                # compute effective weight changing the conductance
+
+    x -= x * u                            # STD
+    u += U * (1 - u)                      # STF
+
+    a_pre = connected * A_plus            # STDP
+    a_post += 0                           # required to keep the variable in the synapse
+    w_ real = connected * (w + a_post)    # STDP
+    w = clip(w_, Wmin, Wmax)
+
+    if connected > 0:  # can we do this, to avoid unnecessary spikes?
+      deliver_spike(w_eff, d)
+    end
+  end
+end
