@@ -144,10 +144,9 @@ class InputGenerator(object):
         -
         """
         self.create_patterns()
-        # create n spike_generators and connect them to network TODO: with random weights?
+        # create n spike_generators
         spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
                                                                           'origin': t_origin})
-        nest.Connect(spike_generators, self.target_network.get_node_collections())
 
         # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
         t = 0
@@ -166,15 +165,26 @@ class InputGenerator(object):
             # Update the pattern to present next round
             current_pattern_id = self.get_next_pattern_id()
 
+        # cutoff values over t=origin+duration
+        t_threshold = duration
+        for i in range(len(spiketrain_list)):
+            threshold_index = np.searchsorted(spiketrain_list[i], t_threshold)
+            spiketrain_list[i] = spiketrain_list[i][0: threshold_index]
+        print(spiketrain_list)
+
         self.spiketrain = spiketrain_list
 
-        # TODO: cutoff values over t=origin+duration?
         # Assign spiketrain_list to spike_generators
         for i in range(self.n):
             spike_generators[i].set({'spike_times': spiketrain_list[i]})
 
         # Connect spike generators to target network
-        nest.Connect(spike_generators, self.target_network.get_node_collections())
+        conn_dict = {'rule': 'pairwise_bernoulli', 'allow_autapses': False, 'p': 1.0}
+        # nest.Connect(spike_generators, self.target_network.get_node_collections(),
+        #             conn_dict, {"weight": 1.0})  # no random weights
+        for i in range(len(self.target_network.get_node_collections())):
+            nest.Connect(spike_generators, self.target_network.get_node_collections()[i],
+                         conn_dict, {"weight": -np.log(np.random.rand())})
 
     def get_next_pattern_id(self) -> int:
         # if sequence is not over just progress to next id in sequence
