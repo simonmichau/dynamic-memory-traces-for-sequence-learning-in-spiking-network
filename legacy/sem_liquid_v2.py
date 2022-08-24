@@ -1064,12 +1064,15 @@ class SEMLiquid(object):
         plt_list2 = []
         print(len(self.u_inp_trace[0]))
         for i in range(len(self.epsp_trace)):
-            plt_list0.append(self.epsp_trace[i][0] * self.u_inp_trace[i][0])
-            plt_list1.append(self.epsp_trace[i][10] * self.u_inp_trace[i][10])
-            plt_list2.append(self.epsp_trace[i][20] * self.u_inp_trace[i][20])
-        plt.plot(plt_list0)
-        plt.plot(plt_list1)
-        plt.plot(plt_list2)
+            #plt_list0.append(self.epsp_trace[i][0] * self.u_inp_trace[i][0])
+            #plt_list1.append(self.epsp_trace[i][10] * self.u_inp_trace[i][10])
+            #plt_list2.append(self.epsp_trace[i][20] * self.u_inp_trace[i][20])
+            plt_list0.append(self.u_inp_trace[i][0])
+            plt_list1.append(self.u_inp_trace[i][10])
+            plt_list2.append(self.u_inp_trace[i][20])
+        plt.plot(plt_list0, color="r")
+        plt.plot(plt_list1, color="g")
+        plt.plot(plt_list2, color="b")
         plt.show()
 
     def trainPCA(self, states):

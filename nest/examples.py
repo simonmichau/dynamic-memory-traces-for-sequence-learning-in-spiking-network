@@ -1,7 +1,7 @@
 import random
 import math
 
-from nest_network_v2 import *
+from nest_network import *
 
 nest.ResetKernel()
 

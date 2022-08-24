@@ -10,19 +10,17 @@ synapse stdp_stp:
 
   parameters:
     #STP
-    U real = 0.04
-    tau_d ms = 500 ms           # depression timescale
-    tau_f ms = 2000 ms          # facilitation timescale
+    U real = random_normal(0.5, 0.25)
+    tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
+    tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
 
     #STDP
     d ms = 3. ms  @nest::delay  # !!! cannot have a variable called "delay"
     tau_tr_pre ms = 15 ms       # presynaptic time constant
     tau_tr_post ms = 30 ms      # postsynaptic time constant
-    Wmax real = 80.             # these must be set manually, and are equivalent to `total_in_xTOy` vars in brian
-    Wmin real = 0.              # this should remain 0
-    A_plus real = 0.48         # presynaptic amplitude
-    A_minus real = -0.24       # postsynaptic amplitude
-    connected real = 1.         # connection variable
+    A_plus real = 0.48          # presynaptic amplitude
+    A_minus real = -0.24        # postsynaptic amplitude
+
   end
 
   equations:
@@ -42,9 +40,7 @@ synapse stdp_stp:
 
   # potentiation
   onReceive(post_spikes):
-    a_post = connected * A_minus
-    w_ real = connected * (w + a_pre)
-    w = clip(w_, Wmin, Wmax)
+    w_ real = w + a_pre
   end
 
   onReceive(pre_spikes):
@@ -53,13 +49,6 @@ synapse stdp_stp:
     x -= x * u                            # STD
     u += U * (1 - u)                      # STF
 
-    a_pre = connected * A_plus            # STDP
-    a_post += 0                           # required to keep the variable in the synapse
-    w_ real = connected * (w + a_post)    # STDP
-    w = clip(w_, Wmin, Wmax)
-
-    if connected > 0:  # can we do this, to avoid unnecessary spikes?
-      deliver_spike(w_eff, d)
-    end
+    deliver_spike(w_eff, d)
   end
 end

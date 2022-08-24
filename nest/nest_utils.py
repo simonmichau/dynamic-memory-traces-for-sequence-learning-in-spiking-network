@@ -1,15 +1,22 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import nest
+from pynestml.frontend.pynestml_frontend import generate_target, generate_nest_target
+from pynestml.frontend.pynestml_frontend import *
 
-import nest_network_v2 as main
+import nest_network as main
+from nest_network import InputGenerator
 
 
 def generate_poisson_spiketrain(t_duration, rate) -> list:
     """Generates a list of poisson generated spike times for a given
 
+    :rtype: list
+
     - duration **t_duration** (in ms) and
-    - firing rate **rate** (in Hz) """
+    - firing rate **rate** (in Hz)
+    """
     n = t_duration * rate * 1e-3  # expected number of spikes in [0, t_duration)
     scale = 1 / (rate * 1e-3)  # expected time between spikes
     isi = np.random.exponential(scale, int(np.ceil(n)))  # list of [ceil(n)] input spike intervals
@@ -42,7 +49,7 @@ def run_simulation(inpgen, t):
     nest.Simulate(t)
 
 
-def measure_node_collection(nc: main.NodeCollection, inpgen=None, t_sim=5000.0) -> None:
+def measure_node_collection(nc: main.NodeCollection, inpgen: Optional[InputGenerator] = None, t_sim=5000.0) -> None:
     """
     Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes, membrane potential and presented
     patterns. Requires an **InputGenerator** object for pattern input generation.
@@ -89,3 +96,26 @@ def measure_node_collection(nc: main.NodeCollection, inpgen=None, t_sim=5000.0) 
     ax3.set_xlabel("time (ms)")
 
     plt.show()
+
+
+def generate_nest_code():
+    """Generates the code for 'iaf_psc_exp_wta' neuron model and 'stdp_stp' synapse model."""
+    #codegen_opts = {"neuron_synapse_pairs": [{'neuron': 'iaf_psc_exp_wta',
+    #                                          'synapse': 'stdp_stp',
+    #                                          'post_ports': ['post_spikes'],
+    #                                          }]}
+    #generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/iaf_psc_exp_wta.nestml",
+    #                                 os.environ["PWD"] + "/nestml_models/stdp_stp.nestml"],
+    #                     target_path=os.environ["PWD"] + "/nestml_target",
+     #                    codegen_opts=codegen_opts,
+    #                     dev=True)
+    codegen_opts = {"neuron_synapse_pairs": [{'neuron': 'iaf_psc_exp',
+                                              'synapse': 'stdp_test',
+                                              'post_ports': ['post_spikes'],
+                                              }]}
+    generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/iaf_psc_exp_test.nestml",
+                                     os.environ["PWD"] + "/nestml_models/stdp_test.nestml"],
+                         target_path=os.environ["PWD"] + "/nestml_target",
+                         codegen_opts=codegen_opts,
+                         dev=True)
+    nest.Install("nestmlmodule")

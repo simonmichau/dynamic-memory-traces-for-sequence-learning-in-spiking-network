@@ -35,33 +35,34 @@ See also
 
 iaf_cond_exp
 """
-neuron iaf_psc_exp_wta:
+neuron iaf_psc_exp:
 
   state:
-    r integer = 0             # counts number of tick during the refractory period
-    # V_abs mV = 0 mV
-    V_m mV = 0 mV             # Membrane potential
+    r integer = 0                          # counts number of tick during the refractory period
+    V_abs mV = 0 mV
   end
 
   equations:
-    kernel I_kernel_inh = exp(-t / tau_syn_inh)     # exponentially decaying inhibitory kernel
-    kernel I_kernel_exc = exp(-t / tau_syn_exc)     # exponentially decaying excitatory kernel
-    # recordable inline V_m mV = V_abs + E_L        # Membrane potential
+    kernel I_kernel_inh = exp(-t / tau_syn_inh)
+    kernel I_kernel_exc = exp(-t / tau_syn_exc)
+    recordable inline V_m mV = V_abs + E_L    # Membrane potential
     inline I_syn pA = convolve(I_kernel_exc, exc_spikes) - convolve(I_kernel_inh, inh_spikes)
-    V_m' = -V_m / tau_m + (I_syn + I_stim) / C_m
-
+    V_abs' = -V_abs / tau_m + (I_syn + I_e + I_stim) / C_m
   end
 
   parameters:
-    C_m pF = 250 pF             # Capacitance of the membrane
-    tau_m ms = 10 ms            # Membrane time constant
-    tau_syn_inh ms = 2 ms       # Time constant of inhibitory synaptic current
-    tau_syn_exc ms = 2 ms       # Time constant of excitatory synaptic current
-    t_ref ms = 2 ms             # Duration of refractory period
-    E_L  mV = 0 mV              # Resting potential
-    V_reset mV = 0 mV - E_L     # Reset value of the membrane potential
+    C_m pF = 250 pF           # Capacitance of the membrane
+    tau_m ms = 10 ms          # Membrane time constant
+    tau_syn_inh ms = 2 ms     # Time constant of inhibitory synaptic current
+    tau_syn_exc ms = 2 ms     # Time constant of excitatory synaptic current
+    t_ref ms = 2 ms           # Duration of refractory period
+    E_L  mV = -70 mV          # Resting potential
+    V_reset mV = -70 mV - E_L # Reset value of the membrane potential
+    Theta   mV = -55 mV - E_L # Threshold, RELATIVE TO RESTING POTENTIAL (!)
+                              # I.e. the real threshold is (E_L + Theta)
 
-    R_max Hz = 100 Hz           # Maximum rate within current WTA circuit
+    # constant external input current
+    I_e pA = 0 pA
   end
 
   internals:
@@ -83,15 +84,12 @@ neuron iaf_psc_exp_wta:
       r = r - 1 # neuron is absolute refractory
     end
 
-
-    rate Hz = R_max * exp(V_m/mV)  # TODO: normalize
-
-
-    p real = resolution() * rate/1000
-    if random_uniform(0, 1) <= p:
-      # r = RefractoryCounts
-      # V_abs = V_reset
+    if V_abs >= Theta: # threshold crossing
+      r = RefractoryCounts
+      V_abs = V_reset
       emit_spike()
     end
+
   end
+
 end

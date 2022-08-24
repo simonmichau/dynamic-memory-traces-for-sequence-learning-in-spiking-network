@@ -9,10 +9,11 @@ import nest
 from nest.lib.hl_api_types import *
 
 from nest_utils import *
-from pynestml.frontend.pynestml_frontend import generate_target
+from pynestml.frontend.pynestml_frontend import generate_target, generate_nest_target
+from pynestml.frontend.pynestml_frontend import *
 
 
-nest.ResetKernel()
+# nest.ResetKernel()
 nest.SetKernelStatus({"rng_seed": 5116})
 
 
@@ -89,17 +90,14 @@ class InputGenerator(object):
         self.current_pattern_index = [0, 0]
 
         self.use_noise = kwds.get('use_noise', True)
-        self.use_input = kwds.get('use_input', True)
+        # self.use_input = kwds.get('use_input', True)
 
         # Create noise
         if self.use_noise:
             self.generate_noise()
 
-        #if self.use_input:
-        #    self.generate_input(5000.0)
-
-        #self.visualize_spiketrain(self.pattern_dict[0], 500)
-        #self.visualize_spiketrain(self.pattern_dict[1], 500)
+        # self.visualize_spiketrain(self.pattern_dict[0], 500)
+        # self.visualize_spiketrain(self.pattern_dict[1], 500)
 
     def generate_noise(self) -> None:
         """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
@@ -170,7 +168,6 @@ class InputGenerator(object):
         for i in range(len(spiketrain_list)):
             threshold_index = np.searchsorted(spiketrain_list[i], t_threshold)
             spiketrain_list[i] = spiketrain_list[i][0: threshold_index]
-        print(spiketrain_list)
 
         self.spiketrain = spiketrain_list
 
@@ -178,13 +175,14 @@ class InputGenerator(object):
         for i in range(self.n):
             spike_generators[i].set({'spike_times': spiketrain_list[i]})
 
-        # Connect spike generators to target network
+        # Connect spike generators to target network and then randomize connection weights
         conn_dict = {'rule': 'pairwise_bernoulli', 'allow_autapses': False, 'p': 1.0}
-        # nest.Connect(spike_generators, self.target_network.get_node_collections(),
-        #             conn_dict, {"weight": 1.0})  # no random weights
-        for i in range(len(self.target_network.get_node_collections())):
-            nest.Connect(spike_generators, self.target_network.get_node_collections()[i],
-                         conn_dict, {"weight": -np.log(np.random.rand())})
+        nest.Connect(spike_generators, self.target_network.get_node_collections(), conn_dict)  # no random weights
+        conn = nest.GetConnections(spike_generators)
+        weight_list = []
+        for i in range(len(conn)):
+            weight_list.append(-np.log(np.random.rand()))
+        conn.set(weight=weight_list)
 
     def get_next_pattern_id(self) -> int:
         # if sequence is not over just progress to next id in sequence
@@ -201,7 +199,7 @@ class InputGenerator(object):
                 self.current_pattern_index[1] = 0  # reset index to beginning of sequence
         return self.pattern_sequences[self.current_pattern_index[0]][self.current_pattern_index[1]]
 
-    def visualize_spiketrain(self, st, t_max):
+    def visualize_spiketrain(self, st):
         """Visualizes a given spiketrain"""
         fig = plt.figure()
         fig, ax = plt.subplots()
@@ -210,7 +208,7 @@ class InputGenerator(object):
             # ax.plot(st[i], [i]*len(st[i]), ".", color='orange')
         ax.set_xlabel("time (ms)")
         ax.set_ylabel("Input channels")
-        ax.axis([0, t_max, -1, self.n])
+        ax.axis([0, np.amax(st)[0]*1.5, -1, self.n])
 
 
 class Network(object):
@@ -232,7 +230,11 @@ class Network(object):
         # simulation time (in ms)
         self.t_sim = kwds.get('t_sim', 2000.0)
         # List containing all WTA circuits
-        self.circuits = self.create_grid()
+        self.circuits = []
+        # Create WTA circuits
+        self.create_grid()
+        # Establish interneuron connections
+        self.form_connections()
 
         # ADMINISTRATIVE VARIABLES
         self.save_figures = kwds.get('save_figures', False)
@@ -278,9 +280,10 @@ class Network(object):
                 nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
                                                            'V_th': -67.0,
                                                            'tau_syn_ex': self.tau_rise,
-                                                           'tau_m': self.tau_decay
-                                                           })
+                                                           'tau_m': self.tau_decay})
                 circuit_list.append(WTACircuit(nc, (n, m)))
+        print(nc.recordables)
+        self.circuits = circuit_list
         return circuit_list
 
     def form_connections(self) -> None:
@@ -407,25 +410,22 @@ class Network(object):
 
 if __name__ == '__main__':
     # Setup nest
-    # print('iaf_psc_exp_wta' in nest.node_models())
-    #generate_target(input_path=os.environ["PWD"] + "/nestml_models/iaf_psc_exp_wta.nestml",
-    #                target_platform="NEST",
-    #                target_path=os.environ["PWD"] + "/nestml_target_example")
-    #nest.Install("nestmlmodule")
-    #n = nest.Create('iaf_psc_exp_wta')
-    #rec = nest.Create('spike_recorder')
-    #nest.Connect(n, rec)
-    #print(len(rec.get('events')['times']))
+    #generate_nest_code()
+    # print("iaf_psc_exp_wta already installed: ", 'iaf_psc_exp_wta' in nest.node_models)
+    # n = nest.Create('iaf_psc_exp_wta')
+    # rec = nest.Create('spike_recorder')
+    # nest.Connect(n, rec)
+    # print(len(rec.get('events')['times']))
 
-    # Initialize Network etc.
+    # Initialize Network
     grid = Network()
     # grid.visualize_circuits()
     # grid.visualize_circuits_3d()
-    grid.form_connections()
     # grid.visualize_connections(grid.get_node_collections(1, 2))
     # grid.get_node_collections(1, 5)
 
-    inp = InputGenerator(grid, n_patterns=2, pattern_sequences=[[0], [0, 1], [1]], use_noise=True, use_input=True)
+    # Initialize Input Generator
+    inp = InputGenerator(grid, n_patterns=1, pattern_sequences=[[0]], use_noise=False)
 
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
     # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)

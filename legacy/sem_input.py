@@ -1,5 +1,6 @@
 
 import numpy
+
 import pylab,matplotlib
 import sys
 import shelve
@@ -173,6 +174,7 @@ class PatternInputGenerator(InputGenerator):
         self.time_warp = 1.0
         self.generate_patterns()
     def generate_patterns(self):
+        """Generates n poisson spiketrains and stores them in **self.patterns**"""
         self.patterns = []
         self.pattern_count = dict()
         for p in range(self.nPatterns):
