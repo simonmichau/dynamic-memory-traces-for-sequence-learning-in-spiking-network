@@ -1,12 +1,12 @@
 synapse stdp_test:
   state:
-    w real = 1.0
+    w real = 1.0 @nest::weight
     #pre_trace real = 0.
     #post_trace real = 0.
 
   end
   parameters:
-    the_delay ms = 1ms # !!! cannot have a variable called "delay"
+    the_delay ms = 1ms @nest::delay # !!! cannot have a variable called "delay"
     lambda real = 0.01
     tau_tr_pre ms = 20ms
     tau_tr_post ms = 20ms

@@ -1,7 +1,7 @@
 synapse stdp_stp:
 
   state:
-    w real = 1. @nest::weight
+    w real = 1. @nest::weight  # TODO: find a way to init w with -np.log(np.random.rand())
     u real = U  # facilitation
     x real = 1.  # depression
     a_pre real = 0.
@@ -10,9 +10,13 @@ synapse stdp_stp:
 
   parameters:
     #STP
-    U real = random_normal(0.5, 0.25)
-    tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
-    tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
+    #U real = random_normal(0.5, 0.25)
+    #tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
+    #tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
+
+    U real = 0.5
+    tau_d ms = 110 ms     # depression timescale
+    tau_f ms = 5 ms    # facilitation timescale
 
     #STDP
     d ms = 3. ms  @nest::delay  # !!! cannot have a variable called "delay"
