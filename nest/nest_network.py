@@ -13,9 +13,14 @@ from pynestml.frontend.pynestml_frontend import generate_target, generate_nest_t
 from pynestml.frontend.pynestml_frontend import *
 
 
-# nest.ResetKernel()
+nest.ResetKernel()
 nest.SetKernelStatus({"rng_seed": 5116})
 
+NEURON_MODEL = 'iaf_psc_exp_wta'
+SYNAPSE_MODEL = 'stdp_stp'
+
+_NEURON_MODEL_NAME = NEURON_MODEL + "__with_" + SYNAPSE_MODEL
+_SYNAPSE_MODEL_NAME = SYNAPSE_MODEL + "__with_" + NEURON_MODEL
 
 class WTACircuit:
 
@@ -276,11 +281,11 @@ class Network(object):
         for m in range(self.m):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
-                #nc = nest.Create('iaf_psc_exp_wta', K)
-                nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
-                                                           'V_th': -67.0,
-                                                           'tau_syn_ex': self.tau_rise,
-                                                           'tau_m': self.tau_decay})
+                nc = nest.Create(_NEURON_MODEL_NAME, K)
+                #nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
+                #                                           'V_th': -67.0,
+                #                                           'tau_syn_ex': self.tau_rise,
+                #                                           'tau_m': self.tau_decay})
                 circuit_list.append(WTACircuit(nc, (n, m)))
         print(nc.recordables)
         self.circuits = circuit_list
@@ -288,12 +293,10 @@ class Network(object):
 
     def form_connections(self) -> None:
         """Connect every WTA circuit """
-        conn_dict = {
-            'rule': 'pairwise_bernoulli',
-            'allow_autapses': False,
-            'p': 1.0
-        }
-        syn_dict = {"weight": -np.log(np.random.rand())}  # TODO: implement synapse model with STP and STDP
+        conn_dict = {'rule': 'pairwise_bernoulli',
+                     'p': 1.0,
+                     'allow_autapses': False}
+        syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME}
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
         for i in range(len(self.circuits)):
@@ -304,7 +307,16 @@ class Network(object):
                                   + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
                     conn_dict['p'] = self.lam * math.exp(-self.lam * d)
                     nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(),
-                                 conn_dict, {"weight": -np.log(np.random.rand())})
+                                 conn_dict, syn_dict)
+
+        # Randomize weights
+        for i in range(len(self.circuits)):
+            # Iterate over WTACircuits
+            conns = nest.GetConnections(self.circuits[i].get_node_collection())
+            for j in range(len(conns)):
+                # Assign random weights to connections
+                # conns[j].weight = -np.log(np.random.rand())  # different notation for setting the weights
+                conns[j].set(weight=-np.log(np.random.rand()))
 
     def visualize_circuits(self) -> None:
         """Creates a **pcolormesh** visualizing the number of neurons k per WTA circuit on the grid"""
@@ -410,12 +422,10 @@ class Network(object):
 
 if __name__ == '__main__':
     # Setup nest
-    #generate_nest_code()
-    # print("iaf_psc_exp_wta already installed: ", 'iaf_psc_exp_wta' in nest.node_models)
-    # n = nest.Create('iaf_psc_exp_wta')
-    # rec = nest.Create('spike_recorder')
-    # nest.Connect(n, rec)
-    # print(len(rec.get('events')['times']))
+    if _NEURON_MODEL_NAME not in nest.node_models or _SYNAPSE_MODEL_NAME not in nest.synapse_models:
+        generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL)
+    print(_SYNAPSE_MODEL_NAME, " installed: ", _SYNAPSE_MODEL_NAME in nest.synapse_models)
+    print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
 
     # Initialize Network
     grid = Network()
@@ -430,8 +440,8 @@ if __name__ == '__main__':
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
     # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
     # measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
+    #measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
+    #measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
     # TODO: implement lateral inhibition
