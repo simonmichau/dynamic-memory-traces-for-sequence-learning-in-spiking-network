@@ -1,7 +1,7 @@
 synapse stdp_stp:
 
   state:
-    w real = 1. @nest::weight  # TODO: find a way to init w with -np.log(np.random.rand())
+    w real = 1. @nest::weight
     u real = U  # facilitation
     x real = 1.  # depression
     a_pre real = 0.
@@ -44,15 +44,15 @@ synapse stdp_stp:
 
   # potentiation
   onReceive(post_spikes):
-    w_ real = w + a_pre
+    w += a_pre
   end
 
   onReceive(pre_spikes):
-    w_eff real = u * x * w                # compute effective weight changing the conductance
+    w = u * x * w                # compute effective weight changing the conductance
 
     x -= x * u                            # STD
     u += U * (1 - u)                      # STF
 
-    deliver_spike(w_eff, d)
+    deliver_spike(w, d)
   end
 end
