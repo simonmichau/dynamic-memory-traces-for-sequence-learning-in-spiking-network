@@ -98,24 +98,19 @@ def measure_node_collection(nc: main.NodeCollection, inpgen: Optional[InputGener
     plt.show()
 
 
-def generate_nest_code():
+def generate_nest_code(neuron_model: str, synapse_model: str):
     """Generates the code for 'iaf_psc_exp_wta' neuron model and 'stdp_stp' synapse model."""
-    #codegen_opts = {"neuron_synapse_pairs": [{'neuron': 'iaf_psc_exp_wta',
-    #                                          'synapse': 'stdp_stp',
-    #                                          'post_ports': ['post_spikes'],
-    #                                          }]}
-    #generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/iaf_psc_exp_wta.nestml",
-    #                                 os.environ["PWD"] + "/nestml_models/stdp_stp.nestml"],
-    #                     target_path=os.environ["PWD"] + "/nestml_target",
-     #                    codegen_opts=codegen_opts,
-    #                     dev=True)
-    codegen_opts = {"neuron_synapse_pairs": [{'neuron': 'iaf_psc_exp',
-                                              'synapse': 'stdp_test',
+    codegen_opts = {"neuron_synapse_pairs": [{'neuron': neuron_model,
+                                              'synapse': synapse_model,
                                               'post_ports': ['post_spikes'],
                                               }]}
-    generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/iaf_psc_exp_test.nestml",
-                                     os.environ["PWD"] + "/nestml_models/stdp_test.nestml"],
+    generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/" + neuron_model + ".nestml",
+                                     os.environ["PWD"] + "/nestml_models/" + synapse_model + ".nestml"],
                          target_path=os.environ["PWD"] + "/nestml_target",
                          codegen_opts=codegen_opts,
                          dev=True)
     nest.Install("nestmlmodule")
+    mangled_neuron_name = neuron_model + "__with_" + synapse_model
+    mangled_synapse_name = synapse_model + "__with_" + neuron_model
+    print("Created ", mangled_neuron_name, " and ", mangled_synapse_name)
+
