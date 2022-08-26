@@ -6,25 +6,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import nest
-from nest.lib.hl_api_types import *
 
 from nest_utils import *
 from pynestml.frontend.pynestml_frontend import generate_target, generate_nest_target
-from pynestml.frontend.pynestml_frontend import *
+# from pynestml.frontend.pynestml_frontend import *
 
 
-nest.ResetKernel()
-nest.SetKernelStatus({"rng_seed": 5116})
+#nest.ResetKernel()
+#nest.SetKernelStatus({"rng_seed": 5116})
 
 NEURON_MODEL = 'iaf_psc_exp_wta'
 SYNAPSE_MODEL = 'stdp_stp'
+regen = False
 
 _NEURON_MODEL_NAME = NEURON_MODEL + "__with_" + SYNAPSE_MODEL
 _SYNAPSE_MODEL_NAME = SYNAPSE_MODEL + "__with_" + NEURON_MODEL
 
+
 class WTACircuit:
 
-    def __init__(self, nc: NodeCollection, pos):
+    def __init__(self, nc, pos):
         self.nc = nc
         self.pos = pos
         self.k = self.get_size()
@@ -111,11 +112,12 @@ class InputGenerator(object):
         # Create n parrot_neuron and connect one poisson generator to each of it
         parrots = nest.Create('parrot_neuron', self.n)
         nest.Connect(poisson_gens, parrots, 'one_to_one')
+        print(nest.GetConnection(poisson_gens))
         # Connect parrots to target network
         conn_dict = {
             'rule': 'pairwise_bernoulli',
+            'p': 1.0,
             'allow_autapses': False,
-            'p': 1.0
         }
         nest.Connect(parrots, self.target_network.get_node_collections(), conn_dict)
         # Update connection weights to random values
@@ -181,12 +183,15 @@ class InputGenerator(object):
             spike_generators[i].set({'spike_times': spiketrain_list[i]})
 
         # Connect spike generators to target network and then randomize connection weights
-        conn_dict = {'rule': 'pairwise_bernoulli', 'allow_autapses': False, 'p': 1.0}
-        nest.Connect(spike_generators, self.target_network.get_node_collections(), conn_dict)  # no random weights
+        conn_dict = {'rule': 'pairwise_bernoulli',
+                     'allow_autapses': False,
+                     'p': 1.0}
+        nest.Connect(spike_generators, self.target_network.get_node_collections(), conn_dict)
         conn = nest.GetConnections(spike_generators)
         weight_list = []
         for i in range(len(conn)):
-            weight_list.append(-np.log(np.random.rand()))
+            # weight_list.append(-np.log(np.random.rand()))
+            weight_list.append(1000.0)
         conn.set(weight=weight_list)
 
     def get_next_pattern_id(self) -> int:
@@ -252,7 +257,7 @@ class Network(object):
             data[circuit.get_pos()[1], circuit.get_pos()[0]] = circuit.get_size()
         return data
 
-    def get_node_collections(self, slice_min=None, slice_max=None) -> Optional[NodeCollection]:
+    def get_node_collections(self, slice_min=None, slice_max=None):
         """Return a slice of **self.circuits** as a **NodeCollection**"""
         if slice_min is None:
             slice_min = 0
@@ -282,12 +287,7 @@ class Network(object):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
                 nc = nest.Create(_NEURON_MODEL_NAME, K)
-                #nc = nest.Create('iaf_psc_exp', K, params={'I_e': 0.0,  # 0.0
-                #                                           'V_th': -67.0,
-                #                                           'tau_syn_ex': self.tau_rise,
-                #                                           'tau_m': self.tau_decay})
                 circuit_list.append(WTACircuit(nc, (n, m)))
-        print(nc.recordables)
         self.circuits = circuit_list
         return circuit_list
 
@@ -296,7 +296,8 @@ class Network(object):
         conn_dict = {'rule': 'pairwise_bernoulli',
                      'p': 1.0,
                      'allow_autapses': False}
-        syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME}
+        syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
+                    'delay': 3.}
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
         for i in range(len(self.circuits)):
@@ -371,7 +372,7 @@ class Network(object):
         if self.show_figures:
             plt.show()
 
-    def visualize_connections(self, nc: NodeCollection) -> None:
+    def visualize_connections(self, nc) -> None:
         """Visualizes all the outgoing connections from some **NodeCollection** nc as a **pcolormesh**"""
         # Get List of X and Y coordinates of each target's position
         X = []
@@ -422,8 +423,7 @@ class Network(object):
 
 if __name__ == '__main__':
     # Setup nest
-    if _NEURON_MODEL_NAME not in nest.node_models or _SYNAPSE_MODEL_NAME not in nest.synapse_models:
-        generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL)
+    generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL, regen=regen)
     print(_SYNAPSE_MODEL_NAME, " installed: ", _SYNAPSE_MODEL_NAME in nest.synapse_models)
     print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
 
@@ -440,8 +440,8 @@ if __name__ == '__main__':
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
     # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
     # measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
-    #measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
-    #measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections()[0], t_sim=1000.0)
+    measure_node_collection(grid.get_node_collections()[0], inp, t_sim=1000.0)
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
     # TODO: implement lateral inhibition
