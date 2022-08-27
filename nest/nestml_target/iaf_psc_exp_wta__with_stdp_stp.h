@@ -38,25 +38,25 @@
 
 namespace nest
 {
-namespace iaf_psc_exp_wta__with_stdp_stp_names
-{
-    const Name _r( "r" );
-    const Name _V_m( "V_m" );
-    const Name _a_pre__for_stdp_stp( "a_pre__for_stdp_stp" );
-    const Name _a_post__for_stdp_stp( "a_post__for_stdp_stp" );
-    const Name _I_kernel_inh__X__inh_spikes( "I_kernel_inh__X__inh_spikes" );
-    const Name _I_kernel_exc__X__exc_spikes( "I_kernel_exc__X__exc_spikes" );
-    const Name _C_m( "C_m" );
-    const Name _tau_m( "tau_m" );
-    const Name _tau_syn_inh( "tau_syn_inh" );
-    const Name _tau_syn_exc( "tau_syn_exc" );
-    const Name _t_ref( "t_ref" );
-    const Name _E_L( "E_L" );
-    const Name _V_reset( "V_reset" );
-    const Name _R_max( "R_max" );
-    const Name _tau_tr_pre__for_stdp_stp( "tau_tr_pre__for_stdp_stp" );
-    const Name _tau_tr_post__for_stdp_stp( "tau_tr_post__for_stdp_stp" );
-}
+    namespace iaf_psc_exp_wta__with_stdp_stp_names
+    {
+        const Name _r( "r" );
+        const Name _V_m( "V_m" );
+        const Name _a_pre__for_stdp_stp( "a_pre__for_stdp_stp" );
+        const Name _a_post__for_stdp_stp( "a_post__for_stdp_stp" );
+        const Name _I_kernel_inh__X__inh_spikes( "I_kernel_inh__X__inh_spikes" );
+        const Name _I_kernel_exc__X__exc_spikes( "I_kernel_exc__X__exc_spikes" );
+        const Name _C_m( "C_m" );
+        const Name _tau_m( "tau_m" );
+        const Name _tau_syn_inh( "tau_syn_inh" );
+        const Name _tau_syn_exc( "tau_syn_exc" );
+        const Name _t_ref( "t_ref" );
+        const Name _E_L( "E_L" );
+        const Name _V_reset( "V_reset" );
+        const Name _R_max( "R_max" );
+        const Name _tau_tr_pre__for_stdp_stp( "tau_tr_pre__for_stdp_stp" );
+        const Name _tau_tr_post__for_stdp_stp( "tau_tr_post__for_stdp_stp" );
+    }
 }
 
 
@@ -68,21 +68,21 @@ namespace iaf_psc_exp_wta__with_stdp_stp_names
 class histentry__iaf_psc_exp_wta__with_stdp_stp
 {
 public:
-  histentry__iaf_psc_exp_wta__with_stdp_stp( double t,
-double a_post__for_stdp_stp,
-double a_pre__for_stdp_stp,
-size_t access_counter )
-  : t_( t )
-  , a_post__for_stdp_stp_( a_post__for_stdp_stp )
-  , a_pre__for_stdp_stp_( a_pre__for_stdp_stp )
-  , access_counter_( access_counter )
-  {
-  }
+    histentry__iaf_psc_exp_wta__with_stdp_stp( double t,
+                                               double a_post__for_stdp_stp,
+                                               double a_pre__for_stdp_stp,
+                                               size_t access_counter )
+            : t_( t )
+            , a_post__for_stdp_stp_( a_post__for_stdp_stp )
+            , a_pre__for_stdp_stp_( a_pre__for_stdp_stp )
+            , access_counter_( access_counter )
+    {
+    }
 
-  double t_;              //!< point in time when spike occurred (in ms)
-   double a_post__for_stdp_stp_;
-   double a_pre__for_stdp_stp_;
-  size_t access_counter_; //!< access counter to enable removal of the entry, once all neurons read it
+    double t_;              //!< point in time when spike occurred (in ms)
+    double a_post__for_stdp_stp_;
+    double a_pre__for_stdp_stp_;
+    size_t access_counter_; //!< access counter to enable removal of the entry, once all neurons read it
 };
 
 
@@ -157,607 +157,613 @@ V_m [mV]  Membrane potential
 class iaf_psc_exp_wta__with_stdp_stp : public nest::ArchivingNode
 {
 public:
-  /**
-   * The constructor is only used to create the model prototype in the model manager.
-  **/
-  iaf_psc_exp_wta__with_stdp_stp();
-
-  /**
-   * The copy constructor is used to create model copies and instances of the model.
-   * @node The copy constructor needs to initialize the parameters and the state.
-   *       Initialization of buffers and interal variables is deferred to
-   *       @c init_buffers_() and @c pre_run_hook() (or calibrate() in NEST 3.3 and older).
-  **/
-  iaf_psc_exp_wta__with_stdp_stp(const iaf_psc_exp_wta__with_stdp_stp &);
-
-  /**
-   * Destructor.
-  **/
-  ~iaf_psc_exp_wta__with_stdp_stp();
-
-  // -------------------------------------------------------------------------
-  //   Import sets of overloaded virtual functions.
-  //   See: Technical Issues / Virtual Functions: Overriding, Overloading,
-  //        and Hiding
-  // -------------------------------------------------------------------------
-
-  using nest::Node::handles_test_event;
-  using nest::Node::handle;
-
-  /**
-   * Used to validate that we can send nest::SpikeEvent to desired target:port.
-  **/
-  nest::port send_test_event(nest::Node& target, nest::rport receptor_type, nest::synindex, bool);
-
-  // -------------------------------------------------------------------------
-  //   Functions handling incoming events.
-  //   We tell nest that we can handle incoming events of various types by
-  //   defining handle() for the given event.
-  // -------------------------------------------------------------------------
-
-
-  void handle(nest::SpikeEvent &);        //! accept spikes
-  void handle(nest::CurrentEvent &);      //! accept input current
-  void handle(nest::DataLoggingRequest &);//! allow recording with multimeter
-  void handle(nest::InstantaneousRateConnectionEvent &);//! accept continuous rate events
-  nest::port handles_test_event(nest::SpikeEvent&, nest::port);
-  nest::port handles_test_event(nest::CurrentEvent&, nest::port);
-  nest::port handles_test_event(nest::DataLoggingRequest&, nest::port);
-  nest::port handles_test_event(nest::InstantaneousRateConnectionEvent&, nest::port);
-
-  // -------------------------------------------------------------------------
-  //   Functions for getting/setting parameters and state values.
-  // -------------------------------------------------------------------------
-
-  void get_status(DictionaryDatum &) const;
-  void set_status(const DictionaryDatum &);
-  // support for spike archiving
-
-  /**
-   * \fn void get_history(long t1, long t2,
-   * std::deque<Archiver::histentry__>::iterator* start,
-   * std::deque<Archiver::histentry__>::iterator* finish)
-   * return the spike times (in steps) of spikes which occurred in the range
-   * (t1,t2].
-   * XXX: two underscores to differentiate it from nest::Node::get_history()
-   */
-  void get_history__( double t1,
-    double t2,
-    std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp >::iterator* start,
-    std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp >::iterator* finish );
-
-  /**
-   * Register a new incoming STDP connection.
-   *
-   * t_first_read: The newly registered synapse will read the history entries
-   * with t > t_first_read.
-   */
-  void register_stdp_connection( double t_first_read, double delay );
-
-  // -------------------------------------------------------------------------
-  //   Getters/setters for state block
-  // -------------------------------------------------------------------------
-
-  inline long get_r() const
-  {
-    return S_.r;
-  }
-
-  inline void set_r(const long __v)
-  {
-    S_.r = __v;
-  }
-
-  inline double get_V_m() const
-  {
-    return S_.V_m;
-  }
-
-  inline void set_V_m(const double __v)
-  {
-    S_.V_m = __v;
-  }
-
-  inline double get_a_pre__for_stdp_stp() const
-  {
-    return S_.a_pre__for_stdp_stp;
-  }
-
-  inline void set_a_pre__for_stdp_stp(const double __v)
-  {
-    S_.a_pre__for_stdp_stp = __v;
-  }
-
-  inline double get_a_post__for_stdp_stp() const
-  {
-    return S_.a_post__for_stdp_stp;
-  }
-
-  inline void set_a_post__for_stdp_stp(const double __v)
-  {
-    S_.a_post__for_stdp_stp = __v;
-  }
-
-  inline double get_I_kernel_inh__X__inh_spikes() const
-  {
-    return S_.I_kernel_inh__X__inh_spikes;
-  }
-
-  inline void set_I_kernel_inh__X__inh_spikes(const double __v)
-  {
-    S_.I_kernel_inh__X__inh_spikes = __v;
-  }
-
-  inline double get_I_kernel_exc__X__exc_spikes() const
-  {
-    return S_.I_kernel_exc__X__exc_spikes;
-  }
-
-  inline void set_I_kernel_exc__X__exc_spikes(const double __v)
-  {
-    S_.I_kernel_exc__X__exc_spikes = __v;
-  }
-
-
-  // -------------------------------------------------------------------------
-  //   Getters/setters for parameters
-  // -------------------------------------------------------------------------
-
-  inline double get_C_m() const
-  {
-    return P_.C_m;
-  }
-
-  inline void set_C_m(const double __v)
-  {
-    P_.C_m = __v;
-  }
-
-  inline double get_tau_m() const
-  {
-    return P_.tau_m;
-  }
-
-  inline void set_tau_m(const double __v)
-  {
-    P_.tau_m = __v;
-  }
-
-  inline double get_tau_syn_inh() const
-  {
-    return P_.tau_syn_inh;
-  }
-
-  inline void set_tau_syn_inh(const double __v)
-  {
-    P_.tau_syn_inh = __v;
-  }
-
-  inline double get_tau_syn_exc() const
-  {
-    return P_.tau_syn_exc;
-  }
-
-  inline void set_tau_syn_exc(const double __v)
-  {
-    P_.tau_syn_exc = __v;
-  }
-
-  inline double get_t_ref() const
-  {
-    return P_.t_ref;
-  }
-
-  inline void set_t_ref(const double __v)
-  {
-    P_.t_ref = __v;
-  }
-
-  inline double get_E_L() const
-  {
-    return P_.E_L;
-  }
-
-  inline void set_E_L(const double __v)
-  {
-    P_.E_L = __v;
-  }
-
-  inline double get_V_reset() const
-  {
-    return P_.V_reset;
-  }
-
-  inline void set_V_reset(const double __v)
-  {
-    P_.V_reset = __v;
-  }
-
-  inline double get_R_max() const
-  {
-    return P_.R_max;
-  }
-
-  inline void set_R_max(const double __v)
-  {
-    P_.R_max = __v;
-  }
-
-  inline double get_tau_tr_pre__for_stdp_stp() const
-  {
-    return P_.tau_tr_pre__for_stdp_stp;
-  }
-
-  inline void set_tau_tr_pre__for_stdp_stp(const double __v)
-  {
-    P_.tau_tr_pre__for_stdp_stp = __v;
-  }
-
-  inline double get_tau_tr_post__for_stdp_stp() const
-  {
-    return P_.tau_tr_post__for_stdp_stp;
-  }
-
-  inline void set_tau_tr_post__for_stdp_stp(const double __v)
-  {
-    P_.tau_tr_post__for_stdp_stp = __v;
-  }
-
-
-  // -------------------------------------------------------------------------
-  //   Getters/setters for internals
-  // -------------------------------------------------------------------------
-
-  inline long get_RefractoryCounts() const
-  {
-    return V_.RefractoryCounts;
-  }
-
-  inline void set_RefractoryCounts(const long __v)
-  {
-    V_.RefractoryCounts = __v;
-  }
-
-  inline double get___h() const
-  {
-    return V_.__h;
-  }
-
-  inline void set___h(const double __v)
-  {
-    V_.__h = __v;
-  }
-
-  inline double get___P__V_m__V_m() const
-  {
-    return V_.__P__V_m__V_m;
-  }
-
-  inline void set___P__V_m__V_m(const double __v)
-  {
-    V_.__P__V_m__V_m = __v;
-  }
-
-  inline double get___P__V_m__I_kernel_inh__X__inh_spikes() const
-  {
-    return V_.__P__V_m__I_kernel_inh__X__inh_spikes;
-  }
-
-  inline void set___P__V_m__I_kernel_inh__X__inh_spikes(const double __v)
-  {
-    V_.__P__V_m__I_kernel_inh__X__inh_spikes = __v;
-  }
-
-  inline double get___P__V_m__I_kernel_exc__X__exc_spikes() const
-  {
-    return V_.__P__V_m__I_kernel_exc__X__exc_spikes;
-  }
-
-  inline void set___P__V_m__I_kernel_exc__X__exc_spikes(const double __v)
-  {
-    V_.__P__V_m__I_kernel_exc__X__exc_spikes = __v;
-  }
-
-  inline double get___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp() const
-  {
-    return V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;
-  }
-
-  inline void set___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp(const double __v)
-  {
-    V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp = __v;
-  }
-
-  inline double get___P__a_post__for_stdp_stp__a_post__for_stdp_stp() const
-  {
-    return V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp;
-  }
-
-  inline void set___P__a_post__for_stdp_stp__a_post__for_stdp_stp(const double __v)
-  {
-    V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp = __v;
-  }
-
-  inline double get___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes() const
-  {
-    return V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;
-  }
-
-  inline void set___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes(const double __v)
-  {
-    V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes = __v;
-  }
-
-  inline double get___P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes() const
-  {
-    return V_.__P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;
-  }
-
-  inline void set___P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes(const double __v)
-  {
-    V_.__P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes = __v;
-  }
-
-
-
-  /* getters/setters for variables transferred from synapse */
-  double get_a_pre__for_stdp_stp( double t, const bool before_increment = true );
-  double get_a_post__for_stdp_stp( double t, const bool before_increment = true );
+    /**
+     * The constructor is only used to create the model prototype in the model manager.
+    **/
+    iaf_psc_exp_wta__with_stdp_stp();
+
+    /**
+     * The copy constructor is used to create model copies and instances of the model.
+     * @node The copy constructor needs to initialize the parameters and the state.
+     *       Initialization of buffers and interal variables is deferred to
+     *       @c init_buffers_() and @c pre_run_hook() (or calibrate() in NEST 3.3 and older).
+    **/
+    iaf_psc_exp_wta__with_stdp_stp(const iaf_psc_exp_wta__with_stdp_stp &);
+
+    /**
+     * Destructor.
+    **/
+    ~iaf_psc_exp_wta__with_stdp_stp();
+
+    // -------------------------------------------------------------------------
+    //   Import sets of overloaded virtual functions.
+    //   See: Technical Issues / Virtual Functions: Overriding, Overloading,
+    //        and Hiding
+    // -------------------------------------------------------------------------
+
+    using nest::Node::handles_test_event;
+    using nest::Node::handle;
+    using nest::Node::sends_secondary_event;
+    /**
+     * Used to validate that we can send nest::SpikeEvent to desired target:port.
+    **/
+    nest::port send_test_event(nest::Node& target, nest::rport receptor_type, nest::synindex, bool);
+
+
+    // -------------------------------------------------------------------------
+    //   Functions handling incoming events.
+    //   We tell nest that we can handle incoming events of various types by
+    //   defining handle() for the given event.
+    // -------------------------------------------------------------------------
+
+
+    void handle(nest::SpikeEvent &);        //! accept spikes
+    void handle(nest::CurrentEvent &);      //! accept input current
+    void handle(nest::DataLoggingRequest &);//! allow recording with multimeter
+    void handle(nest::InstantaneousRateConnectionEvent &);//! accept continuous rate events
+    nest::port handles_test_event(nest::SpikeEvent&, nest::port);
+    nest::port handles_test_event(nest::CurrentEvent&, nest::port);
+    nest::port handles_test_event(nest::DataLoggingRequest&, nest::port);
+    nest::port handles_test_event(nest::InstantaneousRateConnectionEvent&, nest::port);
+    void sends_secondary_event(nest::InstantaneousRateConnectionEvent&)
+    {
+
+    }
+
+    // -------------------------------------------------------------------------
+    //   Functions for getting/setting parameters and state values.
+    // -------------------------------------------------------------------------
+
+    void get_status(DictionaryDatum &) const;
+    void set_status(const DictionaryDatum &);
+    // support for spike archiving
+
+    /**
+     * \fn void get_history(long t1, long t2,
+     * std::deque<Archiver::histentry__>::iterator* start,
+     * std::deque<Archiver::histentry__>::iterator* finish)
+     * return the spike times (in steps) of spikes which occurred in the range
+     * (t1,t2].
+     * XXX: two underscores to differentiate it from nest::Node::get_history()
+     */
+    void get_history__( double t1,
+                        double t2,
+                        std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp >::iterator* start,
+                        std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp >::iterator* finish );
+
+    /**
+     * Register a new incoming STDP connection.
+     *
+     * t_first_read: The newly registered synapse will read the history entries
+     * with t > t_first_read.
+     */
+    void register_stdp_connection( double t_first_read, double delay );
+
+    // -------------------------------------------------------------------------
+    //   Getters/setters for state block
+    // -------------------------------------------------------------------------
+
+    inline long get_r() const
+    {
+        return S_.r;
+    }
+
+    inline void set_r(const long __v)
+    {
+        S_.r = __v;
+    }
+
+    inline double get_V_m() const
+    {
+        return S_.V_m;
+    }
+
+    inline void set_V_m(const double __v)
+    {
+        S_.V_m = __v;
+    }
+
+    inline double get_a_pre__for_stdp_stp() const
+    {
+        return S_.a_pre__for_stdp_stp;
+    }
+
+    inline void set_a_pre__for_stdp_stp(const double __v)
+    {
+        S_.a_pre__for_stdp_stp = __v;
+    }
+
+    inline double get_a_post__for_stdp_stp() const
+    {
+        return S_.a_post__for_stdp_stp;
+    }
+
+    inline void set_a_post__for_stdp_stp(const double __v)
+    {
+        S_.a_post__for_stdp_stp = __v;
+    }
+
+    inline double get_I_kernel_inh__X__inh_spikes() const
+    {
+        return S_.I_kernel_inh__X__inh_spikes;
+    }
+
+    inline void set_I_kernel_inh__X__inh_spikes(const double __v)
+    {
+        S_.I_kernel_inh__X__inh_spikes = __v;
+    }
+
+    inline double get_I_kernel_exc__X__exc_spikes() const
+    {
+        return S_.I_kernel_exc__X__exc_spikes;
+    }
+
+    inline void set_I_kernel_exc__X__exc_spikes(const double __v)
+    {
+        S_.I_kernel_exc__X__exc_spikes = __v;
+    }
+
+
+    // -------------------------------------------------------------------------
+    //   Getters/setters for parameters
+    // -------------------------------------------------------------------------
+
+    inline double get_C_m() const
+    {
+        return P_.C_m;
+    }
+
+    inline void set_C_m(const double __v)
+    {
+        P_.C_m = __v;
+    }
+
+    inline double get_tau_m() const
+    {
+        return P_.tau_m;
+    }
+
+    inline void set_tau_m(const double __v)
+    {
+        P_.tau_m = __v;
+    }
+
+    inline double get_tau_syn_inh() const
+    {
+        return P_.tau_syn_inh;
+    }
+
+    inline void set_tau_syn_inh(const double __v)
+    {
+        P_.tau_syn_inh = __v;
+    }
+
+    inline double get_tau_syn_exc() const
+    {
+        return P_.tau_syn_exc;
+    }
+
+    inline void set_tau_syn_exc(const double __v)
+    {
+        P_.tau_syn_exc = __v;
+    }
+
+    inline double get_t_ref() const
+    {
+        return P_.t_ref;
+    }
+
+    inline void set_t_ref(const double __v)
+    {
+        P_.t_ref = __v;
+    }
+
+    inline double get_E_L() const
+    {
+        return P_.E_L;
+    }
+
+    inline void set_E_L(const double __v)
+    {
+        P_.E_L = __v;
+    }
+
+    inline double get_V_reset() const
+    {
+        return P_.V_reset;
+    }
+
+    inline void set_V_reset(const double __v)
+    {
+        P_.V_reset = __v;
+    }
+
+    inline double get_R_max() const
+    {
+        return P_.R_max;
+    }
+
+    inline void set_R_max(const double __v)
+    {
+        P_.R_max = __v;
+    }
+
+    inline double get_tau_tr_pre__for_stdp_stp() const
+    {
+        return P_.tau_tr_pre__for_stdp_stp;
+    }
+
+    inline void set_tau_tr_pre__for_stdp_stp(const double __v)
+    {
+        P_.tau_tr_pre__for_stdp_stp = __v;
+    }
+
+    inline double get_tau_tr_post__for_stdp_stp() const
+    {
+        return P_.tau_tr_post__for_stdp_stp;
+    }
+
+    inline void set_tau_tr_post__for_stdp_stp(const double __v)
+    {
+        P_.tau_tr_post__for_stdp_stp = __v;
+    }
+
+
+    // -------------------------------------------------------------------------
+    //   Getters/setters for internals
+    // -------------------------------------------------------------------------
+
+    inline long get_RefractoryCounts() const
+    {
+        return V_.RefractoryCounts;
+    }
+
+    inline void set_RefractoryCounts(const long __v)
+    {
+        V_.RefractoryCounts = __v;
+    }
+
+    inline double get___h() const
+    {
+        return V_.__h;
+    }
+
+    inline void set___h(const double __v)
+    {
+        V_.__h = __v;
+    }
+
+    inline double get___P__V_m__V_m() const
+    {
+        return V_.__P__V_m__V_m;
+    }
+
+    inline void set___P__V_m__V_m(const double __v)
+    {
+        V_.__P__V_m__V_m = __v;
+    }
+
+    inline double get___P__V_m__I_kernel_inh__X__inh_spikes() const
+    {
+        return V_.__P__V_m__I_kernel_inh__X__inh_spikes;
+    }
+
+    inline void set___P__V_m__I_kernel_inh__X__inh_spikes(const double __v)
+    {
+        V_.__P__V_m__I_kernel_inh__X__inh_spikes = __v;
+    }
+
+    inline double get___P__V_m__I_kernel_exc__X__exc_spikes() const
+    {
+        return V_.__P__V_m__I_kernel_exc__X__exc_spikes;
+    }
+
+    inline void set___P__V_m__I_kernel_exc__X__exc_spikes(const double __v)
+    {
+        V_.__P__V_m__I_kernel_exc__X__exc_spikes = __v;
+    }
+
+    inline double get___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp() const
+    {
+        return V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;
+    }
+
+    inline void set___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp(const double __v)
+    {
+        V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp = __v;
+    }
+
+    inline double get___P__a_post__for_stdp_stp__a_post__for_stdp_stp() const
+    {
+        return V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp;
+    }
+
+    inline void set___P__a_post__for_stdp_stp__a_post__for_stdp_stp(const double __v)
+    {
+        V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp = __v;
+    }
+
+    inline double get___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes() const
+    {
+        return V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;
+    }
+
+    inline void set___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes(const double __v)
+    {
+        V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes = __v;
+    }
+
+    inline double get___P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes() const
+    {
+        return V_.__P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;
+    }
+
+    inline void set___P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes(const double __v)
+    {
+        V_.__P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes = __v;
+    }
+
+
+
+    /* getters/setters for variables transferred from synapse */
+    double get_a_pre__for_stdp_stp( double t, const bool before_increment = true );
+    double get_a_post__for_stdp_stp( double t, const bool before_increment = true );
 
 protected:
-  // support for spike archiving
-
-  /**
-   * record spike history
-   */
-  void set_spiketime( nest::Time const& t_sp, double offset = 0.0 );
-
-  /**
-   * return most recent spike time in ms
-   */
-  inline double get_spiketime_ms() const;
-
-  /**
-   * clear spike history
-   */
-  void clear_history();
-
-private:
-  void recompute_internal_variables(bool exclude_timestep=false);
-  // support for spike archiving
-
-  // number of incoming connections from stdp connectors.
-  // needed to determine, if every incoming connection has
-  // read the spikehistory for a given point in time
-  size_t n_incoming_;
-
-  double max_delay_;
-
-  double last_spike_;
-
-  // spiking history needed by stdp synapses
-  std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp > history_;
-
-  // cache for initial values
-  double a_pre__for_stdp_stp__iv;
-  double a_post__for_stdp_stp__iv;
-
-private:
-  
-
-  /**
-   * Reset internal buffers of neuron.
-  **/
-  void init_buffers_();
-
-  /**
-   * Initialize auxiliary quantities, leave parameters and state untouched.
-  **/
-  void pre_run_hook();
-
-  /**
-   * Take neuron through given time interval
-  **/
-  void update(nest::Time const &, const long, const long);
-
-  // The next two classes need to be friends to access the State_ class/member
-  friend class nest::RecordablesMap<iaf_psc_exp_wta__with_stdp_stp>;
-  friend class nest::UniversalDataLogger<iaf_psc_exp_wta__with_stdp_stp>;
-
-  /**
-   * Free parameters of the neuron.
-   *
-   *
-   *
-   * These are the parameters that can be set by the user through @c `node.set()`.
-   * They are initialized from the model prototype when the node is created.
-   * Parameters do not change during calls to @c update() and are not reset by
-   * @c ResetNetwork.
-   *
-   * @note Parameters_ need neither copy constructor nor @c operator=(), since
-   *       all its members are copied properly by the default copy constructor
-   *       and assignment operator. Important:
-   *       - If Parameters_ contained @c Time members, you need to define the
-   *         assignment operator to recalibrate all members of type @c Time . You
-   *         may also want to define the assignment operator.
-   *       - If Parameters_ contained members that cannot copy themselves, such
-   *         as C-style arrays, you need to define the copy constructor and
-   *         assignment operator to copy those members.
-  **/
-  struct Parameters_
-  {    /* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Capacitance of the membrane
-    double C_m;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Membrane time constant
-    double tau_m;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Time constant of inhibitory synaptic current
-    double tau_syn_inh;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Time constant of excitatory synaptic current
-    double tau_syn_exc;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Duration of refractory period
-    double t_ref;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Resting potential
-    double E_L;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Reset value of the membrane potential
-    double V_reset;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Maximum rate within current WTA circuit
-    double R_max;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  presynaptic time constant
-    double tau_tr_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  postsynaptic time constant
-    double tau_tr_post__for_stdp_stp;
+    // support for spike archiving
 
     /**
-     * Initialize parameters to their default values.
-    **/
-    Parameters_();
-  };
-
-  /**
-   * Dynamic state of the neuron.
-   *
-   *
-   *
-   * These are the state variables that are advanced in time by calls to
-   * @c update(). In many models, some or all of them can be set by the user
-   * through @c `node.set()`. The state variables are initialized from the model
-   * prototype when the node is created. State variables are reset by @c ResetNetwork.
-   *
-   * @note State_ need neither copy constructor nor @c operator=(), since
-   *       all its members are copied properly by the default copy constructor
-   *       and assignment operator. Important:
-   *       - If State_ contained @c Time members, you need to define the
-   *         assignment operator to recalibrate all members of type @c Time . You
-   *         may also want to define the assignment operator.
-   *       - If State_ contained members that cannot copy themselves, such
-   *         as C-style arrays, you need to define the copy constructor and
-   *         assignment operator to copy those members.
-  **/
-  struct State_
-  {    /* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  counts number of tick during the refractory period
-    long r;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  Membrane potential
-    double V_m;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double I_kernel_exc__X__exc_spikes;
-
-    State_();
-  };
-
-  struct DelayedVariables_
-  {
-  };
-
-  /**
-   * Internal variables of the neuron.
-   *
-   *
-   *
-   * These variables must be initialized by @c pre_run_hook (or calibrate in NEST 3.3 and older), which is called before
-   * the first call to @c update() upon each call to @c Simulate.
-   * @node Variables_ needs neither constructor, copy constructor or assignment operator,
-   *       since it is initialized by @c pre_run_hook() (or calibrate() in NEST 3.3 and older). If Variables_ has members that
-   *       cannot destroy themselves, Variables_ will need a destructor.
-  **/
-  struct Variables_
-  {/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  refractory time in steps
-    long RefractoryCounts;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __h;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__V_m__V_m;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__V_m__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__V_m__I_kernel_exc__X__exc_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__a_post__for_stdp_stp__a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;
-  };
-
-  /**
-   * Buffers of the neuron.
-   * Usually buffers for incoming spikes and data logged for analog recorders.
-   * Buffers must be initialized by @c init_buffers_(), which is called before
-   * @c pre_run_hook() (or calibrate() in NEST 3.3 and older) on the first call to @c Simulate after the start of NEST,
-   * ResetKernel or ResetNetwork.
-   * @node Buffers_ needs neither constructor, copy constructor or assignment operator,
-   *       since it is initialized by @c init_nodes_(). If Buffers_ has members that
-   *       cannot destroy themselves, Buffers_ will need a destructor.
-  **/
-  struct Buffers_
-  {
-    Buffers_(iaf_psc_exp_wta__with_stdp_stp &);
-    Buffers_(const Buffers_ &, iaf_psc_exp_wta__with_stdp_stp &);
+     * record spike history
+     */
+    void set_spiketime( nest::Time const& t_sp, double offset = 0.0 );
 
     /**
-     * Logger for all analog data
+     * return most recent spike time in ms
+     */
+    inline double get_spiketime_ms() const;
+
+    /**
+     * clear spike history
+     */
+    void clear_history();
+
+private:
+    void recompute_internal_variables(bool exclude_timestep=false);
+    // support for spike archiving
+
+    // number of incoming connections from stdp connectors.
+    // needed to determine, if every incoming connection has
+    // read the spikehistory for a given point in time
+    size_t n_incoming_;
+
+    double max_delay_;
+
+    double last_spike_;
+
+    // spiking history needed by stdp synapses
+    std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp > history_;
+
+    // cache for initial values
+    double a_pre__for_stdp_stp__iv;
+    double a_post__for_stdp_stp__iv;
+
+private:
+
+
+    /**
+     * Reset internal buffers of neuron.
     **/
-    nest::UniversalDataLogger<iaf_psc_exp_wta__with_stdp_stp> logger_;
-    inline nest::RingBuffer& get_exc_spikes() {return exc_spikes;}
-    //!< Buffer for input (type: pA)
-    nest::RingBuffer exc_spikes;
-    double exc_spikes_grid_sum_;
-    inline nest::RingBuffer& get_inh_spikes() {return inh_spikes;}
-    //!< Buffer for input (type: pA)
-    nest::RingBuffer inh_spikes;
-    double inh_spikes_grid_sum_;
-    //!< Buffer for input (type: pA)
-    nest::RingBuffer I_stim;
-    inline nest::RingBuffer& get_I_stim() {return I_stim;}
-    double I_stim_grid_sum_;
+    void init_buffers_();
 
-  };
+    /**
+     * Initialize auxiliary quantities, leave parameters and state untouched.
+    **/
+    void pre_run_hook();
 
-  // -------------------------------------------------------------------------
-  //   Getters/setters for inline expressions
-  // -------------------------------------------------------------------------
-  
-  inline double get_I_syn() const
-  {
-    return get_I_kernel_exc__X__exc_spikes() - get_I_kernel_inh__X__inh_spikes();
-  }
+    /**
+     * Take neuron through given time interval
+    **/
+    void update(nest::Time const &, const long, const long);
+
+    // The next two classes need to be friends to access the State_ class/member
+    friend class nest::RecordablesMap<iaf_psc_exp_wta__with_stdp_stp>;
+    friend class nest::UniversalDataLogger<iaf_psc_exp_wta__with_stdp_stp>;
+
+    /**
+     * Free parameters of the neuron.
+     *
+     *
+     *
+     * These are the parameters that can be set by the user through @c `node.set()`.
+     * They are initialized from the model prototype when the node is created.
+     * Parameters do not change during calls to @c update() and are not reset by
+     * @c ResetNetwork.
+     *
+     * @note Parameters_ need neither copy constructor nor @c operator=(), since
+     *       all its members are copied properly by the default copy constructor
+     *       and assignment operator. Important:
+     *       - If Parameters_ contained @c Time members, you need to define the
+     *         assignment operator to recalibrate all members of type @c Time . You
+     *         may also want to define the assignment operator.
+     *       - If Parameters_ contained members that cannot copy themselves, such
+     *         as C-style arrays, you need to define the copy constructor and
+     *         assignment operator to copy those members.
+    **/
+    struct Parameters_
+    {    /* generated by directives/MemberDeclaration.jinja2 */
+        //!  Capacitance of the membrane
+        double C_m;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Membrane time constant
+        double tau_m;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Time constant of inhibitory synaptic current
+        double tau_syn_inh;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Time constant of excitatory synaptic current
+        double tau_syn_exc;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Duration of refractory period
+        double t_ref;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Resting potential
+        double E_L;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Reset value of the membrane potential
+        double V_reset;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Maximum rate within current WTA circuit
+        double R_max;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  presynaptic time constant
+        double tau_tr_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  postsynaptic time constant
+        double tau_tr_post__for_stdp_stp;
+
+        /**
+         * Initialize parameters to their default values.
+        **/
+        Parameters_();
+    };
+
+    /**
+     * Dynamic state of the neuron.
+     *
+     *
+     *
+     * These are the state variables that are advanced in time by calls to
+     * @c update(). In many models, some or all of them can be set by the user
+     * through @c `node.set()`. The state variables are initialized from the model
+     * prototype when the node is created. State variables are reset by @c ResetNetwork.
+     *
+     * @note State_ need neither copy constructor nor @c operator=(), since
+     *       all its members are copied properly by the default copy constructor
+     *       and assignment operator. Important:
+     *       - If State_ contained @c Time members, you need to define the
+     *         assignment operator to recalibrate all members of type @c Time . You
+     *         may also want to define the assignment operator.
+     *       - If State_ contained members that cannot copy themselves, such
+     *         as C-style arrays, you need to define the copy constructor and
+     *         assignment operator to copy those members.
+    **/
+    struct State_
+    {    /* generated by directives/MemberDeclaration.jinja2 */
+        //!  counts number of tick during the refractory period
+        long r;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Membrane potential
+        double V_m;/* generated by directives/MemberDeclaration.jinja2 */
+        double a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        double a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        double I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */
+        double I_kernel_exc__X__exc_spikes;
+
+        State_();
+    };
+
+    struct DelayedVariables_
+    {
+    };
+
+    /**
+     * Internal variables of the neuron.
+     *
+     *
+     *
+     * These variables must be initialized by @c pre_run_hook (or calibrate in NEST 3.3 and older), which is called before
+     * the first call to @c update() upon each call to @c Simulate.
+     * @node Variables_ needs neither constructor, copy constructor or assignment operator,
+     *       since it is initialized by @c pre_run_hook() (or calibrate() in NEST 3.3 and older). If Variables_ has members that
+     *       cannot destroy themselves, Variables_ will need a destructor.
+    **/
+    struct Variables_
+    {/* generated by directives/MemberDeclaration.jinja2 */
+        //!  refractory time in steps
+        double normalization_sum;
+        long RefractoryCounts;/* generated by directives/MemberDeclaration.jinja2 */
+        double __h;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__V_m__V_m;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__V_m__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__V_m__I_kernel_exc__X__exc_spikes;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__a_post__for_stdp_stp__a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;
+    };
+
+    /**
+     * Buffers of the neuron.
+     * Usually buffers for incoming spikes and data logged for analog recorders.
+     * Buffers must be initialized by @c init_buffers_(), which is called before
+     * @c pre_run_hook() (or calibrate() in NEST 3.3 and older) on the first call to @c Simulate after the start of NEST,
+     * ResetKernel or ResetNetwork.
+     * @node Buffers_ needs neither constructor, copy constructor or assignment operator,
+     *       since it is initialized by @c init_nodes_(). If Buffers_ has members that
+     *       cannot destroy themselves, Buffers_ will need a destructor.
+    **/
+    struct Buffers_
+    {
+        Buffers_(iaf_psc_exp_wta__with_stdp_stp &);
+        Buffers_(const Buffers_ &, iaf_psc_exp_wta__with_stdp_stp &);
+
+        /**
+         * Logger for all analog data
+        **/
+        nest::UniversalDataLogger<iaf_psc_exp_wta__with_stdp_stp> logger_;
+        inline nest::RingBuffer& get_exc_spikes() {return exc_spikes;}
+        //!< Buffer for input (type: pA)
+        nest::RingBuffer exc_spikes;
+        double exc_spikes_grid_sum_;
+        inline nest::RingBuffer& get_inh_spikes() {return inh_spikes;}
+        //!< Buffer for input (type: pA)
+        nest::RingBuffer inh_spikes;
+        double inh_spikes_grid_sum_;
+        //!< Buffer for input (type: pA)
+        nest::RingBuffer I_stim;
+        inline nest::RingBuffer& get_I_stim() {return I_stim;}
+        double I_stim_grid_sum_;
+
+    };
+
+    // -------------------------------------------------------------------------
+    //   Getters/setters for inline expressions
+    // -------------------------------------------------------------------------
+
+    inline double get_I_syn() const
+    {
+        return get_I_kernel_exc__X__exc_spikes() - get_I_kernel_inh__X__inh_spikes();
+    }
 
 
-  // -------------------------------------------------------------------------
-  //   Getters/setters for input buffers
-  // -------------------------------------------------------------------------
-  
-  inline nest::RingBuffer& get_exc_spikes() {return B_.get_exc_spikes();};
-  inline nest::RingBuffer& get_inh_spikes() {return B_.get_inh_spikes();};
-  inline nest::RingBuffer& get_I_stim() {return B_.get_I_stim();};
+    // -------------------------------------------------------------------------
+    //   Getters/setters for input buffers
+    // -------------------------------------------------------------------------
 
-  // -------------------------------------------------------------------------
-  //   Member variables of neuron model.
-  //   Each model neuron should have precisely the following four data members,
-  //   which are one instance each of the parameters, state, buffers and variables
-  //   structures. Experience indicates that the state and variables member should
-  //   be next to each other to achieve good efficiency (caching).
-  //   Note: Devices require one additional data member, an instance of the
-  //   ``Device`` child class they belong to.
-  // -------------------------------------------------------------------------
+    inline nest::RingBuffer& get_exc_spikes() {return B_.get_exc_spikes();};
+    inline nest::RingBuffer& get_inh_spikes() {return B_.get_inh_spikes();};
+    inline nest::RingBuffer& get_I_stim() {return B_.get_I_stim();};
+
+    // -------------------------------------------------------------------------
+    //   Member variables of neuron model.
+    //   Each model neuron should have precisely the following four data members,
+    //   which are one instance each of the parameters, state, buffers and variables
+    //   structures. Experience indicates that the state and variables member should
+    //   be next to each other to achieve good efficiency (caching).
+    //   Note: Devices require one additional data member, an instance of the
+    //   ``Device`` child class they belong to.
+    // -------------------------------------------------------------------------
 
 
-  Parameters_       P_;        //!< Free parameters.
-  State_            S_;        //!< Dynamic state.
-  DelayedVariables_ DV_;       //!< Delayed state variables.
-  Variables_        V_;        //!< Internal Variables
-  Buffers_          B_;        //!< Buffers.
+    Parameters_       P_;        //!< Free parameters.
+    State_            S_;        //!< Dynamic state.
+    DelayedVariables_ DV_;       //!< Delayed state variables.
+    Variables_        V_;        //!< Internal Variables
+    Buffers_          B_;        //!< Buffers.
 
-  //! Mapping of recordables names to access functions
-  static nest::RecordablesMap<iaf_psc_exp_wta__with_stdp_stp> recordablesMap_;
+    //! Mapping of recordables names to access functions
+    static nest::RecordablesMap<iaf_psc_exp_wta__with_stdp_stp> recordablesMap_;
 
 }; /* neuron iaf_psc_exp_wta__with_stdp_stp */
 
 inline nest::port iaf_psc_exp_wta__with_stdp_stp::send_test_event(nest::Node& target, nest::rport receptor_type, nest::synindex, bool)
 {
-  // You should usually not change the code in this function.
-  // It confirms that the target of connection @c c accepts @c nest::SpikeEvent on
-  // the given @c receptor_type.
-  nest::SpikeEvent e;
-  e.set_sender(*this);
-  return target.handles_test_event(e, receptor_type);
+    // You should usually not change the code in this function.
+    // It confirms that the target of connection @c c accepts @c nest::SpikeEvent on
+    // the given @c receptor_type.
+    nest::SpikeEvent e;
+    e.set_sender(*this);
+    return target.handles_test_event(e, receptor_type);
 }
 
 inline nest::port iaf_psc_exp_wta__with_stdp_stp::handles_test_event(nest::SpikeEvent&, nest::port receptor_type)
@@ -768,37 +774,37 @@ inline nest::port iaf_psc_exp_wta__with_stdp_stp::handles_test_event(nest::Spike
     // if you want to differentiate between input ports.
     if (receptor_type != 0)
     {
-      throw nest::UnknownReceptorType(receptor_type, get_name());
+        throw nest::UnknownReceptorType(receptor_type, get_name());
     }
     return 0;
 }
 
 inline nest::port iaf_psc_exp_wta__with_stdp_stp::handles_test_event(nest::CurrentEvent&, nest::port receptor_type)
 {
-  // You should usually not change the code in this function.
-  // It confirms to the connection management system that we are able
-  // to handle @c CurrentEvent on port 0. You need to extend the function
-  // if you want to differentiate between input ports.
-  if (receptor_type != 0)
-  {
-    throw nest::UnknownReceptorType(receptor_type, get_name());
-  }
-  return 0;
+    // You should usually not change the code in this function.
+    // It confirms to the connection management system that we are able
+    // to handle @c CurrentEvent on port 0. You need to extend the function
+    // if you want to differentiate between input ports.
+    if (receptor_type != 0)
+    {
+        throw nest::UnknownReceptorType(receptor_type, get_name());
+    }
+    return 0;
 }
 
 inline nest::port iaf_psc_exp_wta__with_stdp_stp::handles_test_event(nest::DataLoggingRequest& dlr, nest::port receptor_type)
 {
-  // You should usually not change the code in this function.
-  // It confirms to the connection management system that we are able
-  // to handle @c DataLoggingRequest on port 0.
-  // The function also tells the built-in UniversalDataLogger that this node
-  // is recorded from and that it thus needs to collect data during simulation.
-  if (receptor_type != 0)
-  {
-    throw nest::UnknownReceptorType(receptor_type, get_name());
-  }
+    // You should usually not change the code in this function.
+    // It confirms to the connection management system that we are able
+    // to handle @c DataLoggingRequest on port 0.
+    // The function also tells the built-in UniversalDataLogger that this node
+    // is recorded from and that it thus needs to collect data during simulation.
+    if (receptor_type != 0)
+    {
+        throw nest::UnknownReceptorType(receptor_type, get_name());
+    }
 
-  return B_.logger_.connect_logging_device(dlr, recordablesMap_);
+    return B_.logger_.connect_logging_device(dlr, recordablesMap_);
 }
 
 
@@ -820,97 +826,97 @@ inline nest::port iaf_psc_exp_wta__with_stdp_stp::handles_test_event(nest::Insta
 
 inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) const
 {
-  // parameters/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_C_m, get_C_m());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, get_tau_m());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_inh, get_tau_syn_inh());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, get_tau_syn_exc());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_t_ref, get_t_ref());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, get_E_L());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, get_V_reset());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_pre__for_stdp_stp, get_tau_tr_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_post__for_stdp_stp, get_tau_tr_post__for_stdp_stp());
+    // parameters/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_C_m, get_C_m());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, get_tau_m());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_inh, get_tau_syn_inh());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, get_tau_syn_exc());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_t_ref, get_t_ref());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, get_E_L());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, get_V_reset());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_pre__for_stdp_stp, get_tau_tr_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_post__for_stdp_stp, get_tau_tr_post__for_stdp_stp());
 
-  // initial values for state variables in ODE or kernel/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, get_r());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, get_V_m());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, get_a_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, get_a_post__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, get_I_kernel_inh__X__inh_spikes());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, get_I_kernel_exc__X__exc_spikes());
+    // initial values for state variables in ODE or kernel/* generated by directives/WriteInDictionary.jinja2 */
+    def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, get_r());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, get_V_m());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, get_a_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, get_a_post__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, get_I_kernel_inh__X__inh_spikes());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, get_I_kernel_exc__X__exc_spikes());
 
-  ArchivingNode::get_status( __d );
+    ArchivingNode::get_status( __d );
 
-  (*__d)[nest::names::recordables] = recordablesMap_.get_list();
+    (*__d)[nest::names::recordables] = recordablesMap_.get_list();
 }
 
 inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__d)
 {
-  // parameters/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_C_m = get_C_m();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_C_m, tmp_C_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_m = get_tau_m();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, tmp_tau_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_syn_inh = get_tau_syn_inh();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_inh, tmp_tau_syn_inh);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_syn_exc = get_tau_syn_exc();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, tmp_tau_syn_exc);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_t_ref = get_t_ref();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_t_ref, tmp_t_ref);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_E_L = get_E_L();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, tmp_E_L);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_V_reset = get_V_reset();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, tmp_V_reset);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_R_max = get_R_max();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, tmp_R_max);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_tr_pre__for_stdp_stp = get_tau_tr_pre__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_pre__for_stdp_stp, tmp_tau_tr_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_tr_post__for_stdp_stp = get_tau_tr_post__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_post__for_stdp_stp, tmp_tau_tr_post__for_stdp_stp);
+    // parameters/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_C_m = get_C_m();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_C_m, tmp_C_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_tau_m = get_tau_m();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, tmp_tau_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_tau_syn_inh = get_tau_syn_inh();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_inh, tmp_tau_syn_inh);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_tau_syn_exc = get_tau_syn_exc();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, tmp_tau_syn_exc);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_t_ref = get_t_ref();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_t_ref, tmp_t_ref);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_E_L = get_E_L();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, tmp_E_L);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_V_reset = get_V_reset();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, tmp_V_reset);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_R_max = get_R_max();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, tmp_R_max);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_tau_tr_pre__for_stdp_stp = get_tau_tr_pre__for_stdp_stp();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_pre__for_stdp_stp, tmp_tau_tr_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_tau_tr_post__for_stdp_stp = get_tau_tr_post__for_stdp_stp();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_post__for_stdp_stp, tmp_tau_tr_post__for_stdp_stp);
 
-  // initial values for state variables in ODE or kernel/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  long tmp_r = get_r();
-  updateValue<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, tmp_r);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_V_m = get_V_m();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, tmp_V_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_a_pre__for_stdp_stp = get_a_pre__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, tmp_a_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_a_post__for_stdp_stp = get_a_post__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, tmp_a_post__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_I_kernel_inh__X__inh_spikes = get_I_kernel_inh__X__inh_spikes();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_I_kernel_exc__X__exc_spikes = get_I_kernel_exc__X__exc_spikes();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, tmp_I_kernel_exc__X__exc_spikes);
+    // initial values for state variables in ODE or kernel/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    long tmp_r = get_r();
+    updateValue<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, tmp_r);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_V_m = get_V_m();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, tmp_V_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_a_pre__for_stdp_stp = get_a_pre__for_stdp_stp();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, tmp_a_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_a_post__for_stdp_stp = get_a_post__for_stdp_stp();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, tmp_a_post__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_I_kernel_inh__X__inh_spikes = get_I_kernel_inh__X__inh_spikes();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_I_kernel_exc__X__exc_spikes = get_I_kernel_exc__X__exc_spikes();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, tmp_I_kernel_exc__X__exc_spikes);
 
-  // We now know that (ptmp, stmp) are consistent. We do not
-  // write them back to (P_, S_) before we are also sure that
-  // the properties to be set in the parent class are internally
-  // consistent.
-  ArchivingNode::set_status(__d);
+    // We now know that (ptmp, stmp) are consistent. We do not
+    // write them back to (P_, S_) before we are also sure that
+    // the properties to be set in the parent class are internally
+    // consistent.
+    ArchivingNode::set_status(__d);
 
-  // if we get here, temporaries contain consistent set of properties/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_C_m(tmp_C_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_m(tmp_tau_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_syn_inh(tmp_tau_syn_inh);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_syn_exc(tmp_tau_syn_exc);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_t_ref(tmp_t_ref);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_E_L(tmp_E_L);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_V_reset(tmp_V_reset);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_R_max(tmp_R_max);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_tr_pre__for_stdp_stp(tmp_tau_tr_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_tr_post__for_stdp_stp(tmp_tau_tr_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_r(tmp_r);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_V_m(tmp_V_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_a_pre__for_stdp_stp(tmp_a_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_a_post__for_stdp_stp(tmp_a_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_I_kernel_inh__X__inh_spikes(tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_I_kernel_exc__X__exc_spikes(tmp_I_kernel_exc__X__exc_spikes);
+    // if we get here, temporaries contain consistent set of properties/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_C_m(tmp_C_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_tau_m(tmp_tau_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_tau_syn_inh(tmp_tau_syn_inh);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_tau_syn_exc(tmp_tau_syn_exc);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_t_ref(tmp_t_ref);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_E_L(tmp_E_L);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_V_reset(tmp_V_reset);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_R_max(tmp_R_max);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_tau_tr_pre__for_stdp_stp(tmp_tau_tr_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_tau_tr_post__for_stdp_stp(tmp_tau_tr_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_r(tmp_r);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_V_m(tmp_V_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_a_pre__for_stdp_stp(tmp_a_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_a_post__for_stdp_stp(tmp_a_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_I_kernel_inh__X__inh_spikes(tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_I_kernel_exc__X__exc_spikes(tmp_I_kernel_exc__X__exc_spikes);
 
 
 
-  // recompute internal variables in case they are dependent on parameters or state that might have been updated in this call to set_status()
-  recompute_internal_variables();
+    // recompute internal variables in case they are dependent on parameters or state that might have been updated in this call to set_status()
+    recompute_internal_variables();
 };
 
 #endif /* #ifndef IAF_PSC_EXP_WTA__WITH_STDP_STP */
