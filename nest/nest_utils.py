@@ -93,7 +93,7 @@ def measure_node_collection(nc, inpgen=None, t_sim=5000.0) -> None:
     ax2.set_ylabel("Spikes")
 
     # PRESENTED PATTERNS
-    time_shift = nest.biological_time - dmm["events"]["times"].size
+    time_shift = nest.biological_time - t_sim
     if inpgen is not None:
         st = inpgen.spiketrain
         for i in range(len(st)):
