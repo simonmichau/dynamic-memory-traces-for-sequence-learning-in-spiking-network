@@ -42,6 +42,15 @@ def generate_poisson_spiketrain(t_duration, rate) -> list:
     return spikes.tolist()
 
 
+def randomize_outgoing_connections(nc):
+    """Randomizes the weights of outgoing connections of a NodeCollection **nc**"""
+    conns = nest.GetConnections(nc)
+    random_weight_list = []
+    for i in range(len(conns)):
+        random_weight_list.append(-np.log(np.random.rand()))
+    conns.set(weight=random_weight_list)
+
+
 def run_simulation(inpgen, t):
     """Pre-generates input patterns for duration of simulation and then runs the simulation"""
     inpgen.generate_input(t, t_origin=nest.biological_time)
