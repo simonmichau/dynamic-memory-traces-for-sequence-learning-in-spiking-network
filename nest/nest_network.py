@@ -138,13 +138,16 @@ class InputGenerator(object):
                 pattern.append(generate_poisson_spiketrain(self.t_pattern[i], self.r_input))
             self.pattern_dict[i] = pattern
 
-    def generate_input(self, duration, t_origin=0.0):
+    def generate_input(self, duration, t_origin=0.0, refresh_patterns=False):
         """Generates Input for a given duration. Needs to be run for every simulation
 
         - duration: duration of input (in ms)
         -
         """
-        self.create_patterns()
+        # Create new patterns if none have been created yet, or it is demanded explicitly
+        if not self.pattern_dict or refresh_patterns:
+            self.create_patterns()
+
         # create n spike_generators
         spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
                                                                           'origin': t_origin})
@@ -431,8 +434,12 @@ if __name__ == '__main__':
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
     # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
     # measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
+    # measure_node_collection(grid.get_node_collections()[0:2], t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=500000.0)
+    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=5000.0)
+
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
     # TODO: implement lateral inhibition
