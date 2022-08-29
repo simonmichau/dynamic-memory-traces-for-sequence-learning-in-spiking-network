@@ -89,7 +89,7 @@ class InputGenerator(object):
         # Range from which the noise phase duration is randomly chosen from (in ms)
         self.t_noise_range = kwds.get('t_noise_range', [100.0, 500.0])
         # Dictionary of stored patterns
-        self.pattern_dict = dict()
+        self.pattern_list = []
         # Spiketrain for all n input channels
         self.spiketrain = [[]] * self.n
         # Tuple storing the sequence index and the index of the current pattern
@@ -102,8 +102,8 @@ class InputGenerator(object):
         if self.use_noise:
             self.generate_noise()
 
-        # self.visualize_spiketrain(self.pattern_dict[0], 500)
-        # self.visualize_spiketrain(self.pattern_dict[1], 500)
+        # self.visualize_spiketrain(self.pattern_list[0], 500)
+        # self.visualize_spiketrain(self.pattern_list[1], 500)
 
     def generate_noise(self) -> None:
         """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
@@ -112,7 +112,6 @@ class InputGenerator(object):
         # Create n parrot_neuron and connect one poisson generator to each of it
         parrots = nest.Create('parrot_neuron', self.n)
         nest.Connect(poisson_gens, parrots, 'one_to_one')
-        print(nest.GetConnections(poisson_gens))
         # Connect parrots to target network
         conn_dict = {
             'rule': 'pairwise_bernoulli',
@@ -130,22 +129,22 @@ class InputGenerator(object):
         - pattern durations **t_pattern** (in ms),
         - pattern firing rate **r_input** (in Hz)
 
-        and stores them in **pattern_dict**."""
-        self.pattern_dict = dict()
+        and stores them in **pattern_list**."""
+        self.pattern_list = []
         for i in range(self.n_patterns):
             pattern = []
             for j in range(self.n):
                 pattern.append(generate_poisson_spiketrain(self.t_pattern[i], self.r_input))
-            self.pattern_dict[i] = pattern
+            self.pattern_list.append(pattern)
 
-    def generate_input(self, duration, t_origin=0.0, refresh_patterns=False):
+    def generate_input(self, duration, t_origin=0.0, force_refresh_patterns=False):
         """Generates Input for a given duration. Needs to be run for every simulation
 
         - duration: duration of input (in ms)
         -
         """
         # Create new patterns if none have been created yet, or it is demanded explicitly
-        if not self.pattern_dict or refresh_patterns:
+        if not self.pattern_list or force_refresh_patterns:
             self.create_patterns()
 
         # create n spike_generators
@@ -162,7 +161,7 @@ class InputGenerator(object):
 
             # append pattern spike times to spiketrain list
             for i in range(self.n):  # iterate over input channels
-                st = np.add(t+t_noise_phase, self.pattern_dict[current_pattern_id][i])
+                st = np.add(t+t_noise_phase, self.pattern_list[current_pattern_id][i])
                 spiketrain_list[i] = spiketrain_list[i] + st.tolist()
             t += t_noise_phase + self.t_pattern[current_pattern_id]
 
@@ -204,6 +203,13 @@ class InputGenerator(object):
                     self.current_pattern_index[0] = (self.current_pattern_index[0]+1) % len(self.pattern_sequences)
                 self.current_pattern_index[1] = 0  # reset index to beginning of sequence
         return self.pattern_sequences[self.current_pattern_index[0]][self.current_pattern_index[1]]
+
+    def get_patterns(self):
+        return self.pattern_list
+
+    def set_patterns(self, patterns):
+        self.pattern_list = []
+        self.pattern_list += patterns
 
     def visualize_spiketrain(self, st):
         """Visualizes a given spiketrain"""
@@ -429,16 +435,17 @@ if __name__ == '__main__':
     # grid.get_node_collections(1, 5)
 
     # Initialize Input Generator
-    inp = InputGenerator(grid, n_patterns=1, pattern_sequences=[[0]], use_noise=True)
+    inp = InputGenerator(grid, n_patterns=3, pattern_sequences=[[0]], use_noise=True)
 
     # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
     # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
     # measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
     # measure_node_collection(grid.get_node_collections()[0:2], t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=500000.0)
-    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(1, 2), inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=50000.0)
+    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
+    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
 
 
     # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
