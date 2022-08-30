@@ -59,6 +59,7 @@ namespace nest
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, &iaf_psc_exp_wta__with_stdp_stp::get_a_post__for_stdp_stp);
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, &iaf_psc_exp_wta__with_stdp_stp::get_I_kernel_inh__X__inh_spikes);
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, &iaf_psc_exp_wta__with_stdp_stp::get_I_kernel_exc__X__exc_spikes);
+        insert_(iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum, &iaf_psc_exp_wta__with_stdp_stp::get_normalization_sum);
 
         // Add vector variables
     }
@@ -325,7 +326,7 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const & origin,const long
     }
 
     // Send rate-neuron-event
-//    std::cout << "Sending InstantaneousRateConnectionEvent..." << std::endl << std::flush;
+    //std::cout << "Sending InstantaneousRateConnectionEvent..." << std::endl << std::flush;
 
     nest::InstantaneousRateConnectionEvent u_t_event;
     u_t_event.set_coeffarray( new_voltage );
@@ -378,7 +379,7 @@ void iaf_psc_exp_wta__with_stdp_stp::handle(nest::CurrentEvent& e)
 
 void iaf_psc_exp_wta__with_stdp_stp::handle(nest::InstantaneousRateConnectionEvent& e)
 {
-//    std::cout << "Received InstantaneousRateConnectionEvent " << std::endl << std::flush;
+    // std::cout << "Received InstantaneousRateConnectionEvent " << std::endl << std::flush;
 
     size_t i = 0;
     std::vector< unsigned int >::iterator it = e.begin();
