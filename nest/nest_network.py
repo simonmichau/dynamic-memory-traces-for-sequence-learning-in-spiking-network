@@ -17,10 +17,11 @@ nest.SetKernelStatus({"rng_seed": 5116})
 
 NEURON_MODEL = 'iaf_psc_exp_wta'
 SYNAPSE_MODEL = 'stdp_stp'
+RATE_CONN_SYN_MODEL = 'rate_connection_instantaneous'
 regen = False
 
 _NEURON_MODEL_NAME = NEURON_MODEL + "__with_" + SYNAPSE_MODEL
-_SYNAPSE_MODEL_NAME = 'rate_connection_instantaneous'  # SYNAPSE_MODEL + "__with_" + NEURON_MODEL
+_SYNAPSE_MODEL_NAME = SYNAPSE_MODEL + "__with_" + NEURON_MODEL
 
 
 class WTACircuit:
@@ -29,6 +30,7 @@ class WTACircuit:
         self.nc = nc
         self.pos = pos
         self.k = self.get_size()
+        self.form_WTA()
 
     def get_pos(self):
         """Returns the (x, y) position of the WTA circuit"""
@@ -49,6 +51,13 @@ class WTACircuit:
     def get_size(self):
         """Returns the size of the NodeCollection nc"""
         return len(self.nc.get('global_id'))
+
+    def form_WTA(self):
+        """Connects all neurons within the same WTA via rate_connection_instantaneous connections"""
+        for i in range(self.k):
+            for j in range(self.k):
+                if i != j:
+                    nest.Connect(self.nc[i], self.nc[j], "all_to_all", {"synapse_model": RATE_CONN_SYN_MODEL})
 
 
 class InputGenerator(object):
