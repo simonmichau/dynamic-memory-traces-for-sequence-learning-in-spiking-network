@@ -57,16 +57,19 @@ def run_simulation(inpgen, t):
     nest.Simulate(t)
 
 
-def measure_node_collection(nc, inpgen=None, t_sim=5000.0) -> None:
+def measure_node_collection(network, nc, inpgen=None, t_sim=5000.0, save_figures=False, readout_size=20):
     """
     Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes, membrane potential and presented
     patterns. Requires an **InputGenerator** object for pattern input generation.
     """
-    multimeter = nest.Create('multimeter')
-    multimeter.set(record_from=['V_m'])
-    spikerecorder = nest.Create('spike_recorder')
-    nest.Connect(multimeter, nc)
-    nest.Connect(nc, spikerecorder)
+    # TODO: randomly sample [readout_size] neurons from Network and measure them (replace nc)
+    if network.multimeter is None:
+        network.multimeter = nest.Create('multimeter')
+        network.multimeter.set(record_from=['V_m'])
+        nest.Connect(network.multimeter, nc)
+    if network.spikerecorder is None:
+        network.spikerecorder = nest.Create('spike_recorder')
+        nest.Connect(nc, network.spikerecorder)
 
     if inpgen is None:
         nest.Simulate(t_sim)
@@ -77,15 +80,16 @@ def measure_node_collection(nc, inpgen=None, t_sim=5000.0) -> None:
     fig.set_figwidth(8)
     fig.set_figheight(6)
     # MEMBRANE POTENTIAL
-    dmm = multimeter.get()
+    dmm = network.multimeter.get()
     Vms = dmm["events"]["V_m"]
     ts = dmm["events"]["times"]
 
     ax1.plot(ts, Vms)
+    ax1.set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
     ax1.set_ylabel("Membrane potential (mV)")
 
     # SPIKE EVENTS
-    dSD = spikerecorder.get("events")
+    dSD = network.spikerecorder.get("events")
     evs = dSD["senders"]
     ts = dSD["times"]
 
@@ -101,8 +105,11 @@ def measure_node_collection(nc, inpgen=None, t_sim=5000.0) -> None:
             ax3.plot(np.add(time_shift, st[i]), [i]*len(st[i]), ".", color='orange')
 
     ax3.set_ylabel("Input channels")
+    ax3.set_xlim(time_shift, nest.biological_time)
     ax3.set_xlabel("time (ms)")
 
+    if save_figures:
+        plt.savefig("simulation_%ds.png" % int(nest.biological_time/1000.0))
     plt.show()
 
 

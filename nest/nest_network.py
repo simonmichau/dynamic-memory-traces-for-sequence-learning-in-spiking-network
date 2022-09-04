@@ -273,6 +273,9 @@ class Network(object):
         # Establish interneuron connections
         self.form_connections()
 
+        self.multimeter = None
+        self.spikerecorder = None
+
         # ADMINISTRATIVE VARIABLES
         self.save_figures = kwds.get('save_figures', False)
         self.show_figures = kwds.get('show_figures', True)
@@ -313,7 +316,7 @@ class Network(object):
         for m in range(self.m):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
-                nc = nest.Create(_NEURON_MODEL_NAME, K)
+                nc = nest.Create(_NEURON_MODEL_NAME, K, {'tau_m': 20.0})
                 circuit_list.append(WTACircuit(nc, (n, m)))
         self.circuits = circuit_list
         return circuit_list
@@ -324,7 +327,7 @@ class Network(object):
                      'p': 1.0,
                      'allow_autapses': False}
         syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
-                    # 'delay': 3.
+                    'delay': 3.
                     }
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
