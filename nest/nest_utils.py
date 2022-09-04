@@ -123,3 +123,12 @@ def generate_nest_code(neuron_model: str, synapse_model: str, regen=True):
     mangled_synapse_name = synapse_model + "__with_" + neuron_model
     print("Created ", mangled_neuron_name, " and ", mangled_synapse_name)
 
+
+def plot_weights(weight_recorder):
+    fig, ax = plt.subplots()
+    events = weight_recorder.get('events')
+    w_vec = events['weights']
+    t_vec = events['times']
+    ax.set_xlim(0, np.amax(weight_recorder.get('events')['times']))
+    ax.plot(t_vec, w_vec)
+    fig.show()
