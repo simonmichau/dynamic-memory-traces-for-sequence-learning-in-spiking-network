@@ -127,7 +127,10 @@ class InputGenerator(object):
             'p': 1.0,
             'allow_autapses': False,
         }
-        nest.Connect(parrots, self.target_network.get_node_collections(), conn_dict)
+        syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
+                    'delay': 3.
+                    }
+        nest.Connect(parrots, self.target_network.get_node_collections(), conn_dict, syn_dict)
         # Update connection weights to random values
         randomize_outgoing_connections(parrots)
 
@@ -159,6 +162,19 @@ class InputGenerator(object):
         # create n spike_generators
         spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
                                                                           'origin': t_origin})
+
+            # Connect spike generators to target network
+            conn_dict = {'rule': 'pairwise_bernoulli',
+                         'allow_autapses': False,
+                         'p': 1.0}
+            syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
+                        'delay': 3.
+                        }
+            nest.Connect(self.spike_generators, self.target_network.get_node_collections(), conn_dict,
+                         syn_dict)
+
+            # Randomize connection weights
+            randomize_outgoing_connections(self.spike_generators)
 
         # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
         t = 0
