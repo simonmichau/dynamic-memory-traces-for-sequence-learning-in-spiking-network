@@ -10,13 +10,9 @@ synapse stdp_stp:
 
   parameters:
     #STP
-    #U real = random_normal(0.5, 0.25)
-    #tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
-    #tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
-
-    U real = 0.5
-    tau_d ms = 110 ms     # depression timescale
-    tau_f ms = 5 ms    # facilitation timescale
+    U real = random_normal(0.5, 0.25)
+    tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
+    tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
 
     #STDP
     d ms = 3. ms  @nest::delay  # !!! cannot have a variable called "delay"

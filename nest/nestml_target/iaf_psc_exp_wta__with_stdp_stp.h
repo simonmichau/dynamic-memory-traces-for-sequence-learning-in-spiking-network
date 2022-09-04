@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
- *  Generated from NESTML at time: 2022-08-26 13:45:45.939261
+ *  Generated from NESTML at time: 2022-09-04 16:28:00.107920
 **/
 #ifndef IAF_PSC_EXP_WTA__WITH_STDP_STP
 #define IAF_PSC_EXP_WTA__WITH_STDP_STP
@@ -42,15 +42,14 @@ namespace nest
     {
         const Name _r( "r" );
         const Name _V_m( "V_m" );
-        const Name _a_pre__for_stdp_stp( "a_pre__for_stdp_stp" );
         const Name _a_post__for_stdp_stp( "a_post__for_stdp_stp" );
+        const Name _a_pre__for_stdp_stp( "a_pre__for_stdp_stp" );
         const Name _I_kernel_inh__X__inh_spikes( "I_kernel_inh__X__inh_spikes" );
         const Name _I_kernel_exc__X__exc_spikes( "I_kernel_exc__X__exc_spikes" );
         const Name _C_m( "C_m" );
         const Name _tau_m( "tau_m" );
         const Name _tau_syn_inh( "tau_syn_inh" );
         const Name _tau_syn_exc( "tau_syn_exc" );
-        const Name _t_ref( "t_ref" );
         const Name _E_L( "E_L" );
         const Name _V_reset( "V_reset" );
         const Name _R_max( "R_max" );
@@ -135,12 +134,19 @@ public:
   Parameters:
   The following parameters can be set in the status dictionary.
 C_m [pF]  Capacitance of the membrane
+ TODO: double check with paper
+ Membrane time constant
 tau_m [ms]  Membrane time constant
+ Time constant of inhibitory synaptic current
 tau_syn_inh [ms]  Time constant of inhibitory synaptic current
+ INFO: only used if inhibitory connections exist
+ Time constant of excitatory synaptic current
 tau_syn_exc [ms]  Time constant of excitatory synaptic current
-t_ref [ms]  Duration of refractory period
+ Resting potential
 E_L [mV]  Resting potential
+ Reset value of the membrane potential
 V_reset [mV]  Reset value of the membrane potential
+ Maximum rate within current WTA circuit
 R_max [Hz]  Maximum rate within current WTA circuit
 tau_tr_pre__for_stdp_stp [ms]  presynaptic time constant
 tau_tr_post__for_stdp_stp [ms]  postsynaptic time constant
@@ -264,16 +270,6 @@ public:
         S_.V_m = __v;
     }
 
-    inline double get_a_pre__for_stdp_stp() const
-    {
-        return S_.a_pre__for_stdp_stp;
-    }
-
-    inline void set_a_pre__for_stdp_stp(const double __v)
-    {
-        S_.a_pre__for_stdp_stp = __v;
-    }
-
     inline double get_a_post__for_stdp_stp() const
     {
         return S_.a_post__for_stdp_stp;
@@ -282,6 +278,16 @@ public:
     inline void set_a_post__for_stdp_stp(const double __v)
     {
         S_.a_post__for_stdp_stp = __v;
+    }
+
+    inline double get_a_pre__for_stdp_stp() const
+    {
+    return S_.a_pre__for_stdp_stp;
+    }
+
+    inline void set_a_pre__for_stdp_stp(const double __v)
+    {
+    S_.a_pre__for_stdp_stp = __v;
     }
 
     inline double get_I_kernel_inh__X__inh_spikes() const
@@ -349,16 +355,6 @@ public:
         P_.tau_syn_exc = __v;
     }
 
-    inline double get_t_ref() const
-    {
-        return P_.t_ref;
-    }
-
-    inline void set_t_ref(const double __v)
-    {
-        P_.t_ref = __v;
-    }
-
     inline double get_E_L() const
     {
         return P_.E_L;
@@ -414,16 +410,6 @@ public:
     //   Getters/setters for internals
     // -------------------------------------------------------------------------
 
-    inline long get_RefractoryCounts() const
-    {
-        return V_.RefractoryCounts;
-    }
-
-    inline void set_RefractoryCounts(const long __v)
-    {
-        V_.RefractoryCounts = __v;
-    }
-
     inline double get___h() const
     {
         return V_.__h;
@@ -464,16 +450,6 @@ public:
         V_.__P__V_m__I_kernel_exc__X__exc_spikes = __v;
     }
 
-    inline double get___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp() const
-    {
-        return V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;
-    }
-
-    inline void set___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp(const double __v)
-    {
-        V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp = __v;
-    }
-
     inline double get___P__a_post__for_stdp_stp__a_post__for_stdp_stp() const
     {
         return V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp;
@@ -482,6 +458,16 @@ public:
     inline void set___P__a_post__for_stdp_stp__a_post__for_stdp_stp(const double __v)
     {
         V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp = __v;
+    }
+
+    inline double get___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp() const
+    {
+        return V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;
+    }
+
+    inline void set___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp(const double __v)
+    {
+        V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp = __v;
     }
 
     inline double get___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes() const
@@ -516,8 +502,8 @@ public:
 
 
     /* getters/setters for variables transferred from synapse */
-    double get_a_pre__for_stdp_stp( double t, const bool before_increment = true );
     double get_a_post__for_stdp_stp( double t, const bool before_increment = true );
+    double get_a_pre__for_stdp_stp( double t, const bool before_increment = true );
 
 protected:
     // support for spike archiving
@@ -553,9 +539,9 @@ private:
     // spiking history needed by stdp synapses
     std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp > history_;
 
-    // cache for initial values
-    double a_pre__for_stdp_stp__iv;
-    double a_post__for_stdp_stp__iv;
+  // cache for initial values
+  double a_post__for_stdp_stp__iv;
+  double a_pre__for_stdp_stp__iv;
 
 private:
 
@@ -602,18 +588,24 @@ private:
     struct Parameters_
     {    /* generated by directives/MemberDeclaration.jinja2 */
         //!  Capacitance of the membrane
+        //!  TODO: double check with paper
+        //!  Membrane time constant
         double C_m;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Membrane time constant
+        //!  Time constant of inhibitory synaptic current
         double tau_m;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Time constant of inhibitory synaptic current
+        //!  INFO: only used if inhibitory connections exist
+        //!  Time constant of excitatory synaptic current
         double tau_syn_inh;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Time constant of excitatory synaptic current
-        double tau_syn_exc;/* generated by directives/MemberDeclaration.jinja2 */
-        //!  Duration of refractory period
-        double t_ref;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Resting potential
+        double tau_syn_exc;/* generated by directives/MemberDeclaration.jinja2 */
+        //!  Resting potential
+        //!  Reset value of the membrane potential
         double E_L;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Reset value of the membrane potential
+        //!  Maximum rate within current WTA circuit
         double V_reset;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Maximum rate within current WTA circuit
         double R_max;/* generated by directives/MemberDeclaration.jinja2 */
@@ -654,8 +646,8 @@ private:
         long r;/* generated by directives/MemberDeclaration.jinja2 */
         //!  Membrane potential
         double V_m;/* generated by directives/MemberDeclaration.jinja2 */
-        double a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
         double a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        double a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
         double I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */
         double I_kernel_exc__X__exc_spikes;
         //double normalization_sum;
@@ -680,14 +672,12 @@ private:
     **/
     struct Variables_
     {/* generated by directives/MemberDeclaration.jinja2 */
-        //!  refractory time in steps
-        long RefractoryCounts;/* generated by directives/MemberDeclaration.jinja2 */
         double __h;/* generated by directives/MemberDeclaration.jinja2 */
         double __P__V_m__V_m;/* generated by directives/MemberDeclaration.jinja2 */
         double __P__V_m__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */
         double __P__V_m__I_kernel_exc__X__exc_spikes;/* generated by directives/MemberDeclaration.jinja2 */
-        double __P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
         double __P__a_post__for_stdp_stp__a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
+        double __P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */
         double __P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */
         double __P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;
         double normalization_sum;
@@ -842,7 +832,6 @@ inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) con
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, get_tau_m());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_inh, get_tau_syn_inh());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, get_tau_syn_exc());/* generated by directives/WriteInDictionary.jinja2 */
-    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_t_ref, get_t_ref());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, get_E_L());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, get_V_reset());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());/* generated by directives/WriteInDictionary.jinja2 */
@@ -852,8 +841,8 @@ inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) con
     // initial values for state variables in ODE or kernel/* generated by directives/WriteInDictionary.jinja2 */
     def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, get_r());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, get_V_m());/* generated by directives/WriteInDictionary.jinja2 */
-    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, get_a_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, get_a_post__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, get_a_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, get_I_kernel_inh__X__inh_spikes());/* generated by directives/WriteInDictionary.jinja2 */
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, get_I_kernel_exc__X__exc_spikes());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum, get_normalization_sum());
@@ -874,8 +863,6 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_inh, tmp_tau_syn_inh);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_tau_syn_exc = get_tau_syn_exc();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, tmp_tau_syn_exc);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
-    double tmp_t_ref = get_t_ref();
-    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_t_ref, tmp_t_ref);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_E_L = get_E_L();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, tmp_E_L);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_V_reset = get_V_reset();
@@ -892,10 +879,10 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     updateValue<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, tmp_r);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_V_m = get_V_m();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, tmp_V_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
-    double tmp_a_pre__for_stdp_stp = get_a_pre__for_stdp_stp();
-    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, tmp_a_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_a_post__for_stdp_stp = get_a_post__for_stdp_stp();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, tmp_a_post__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
+    double tmp_a_pre__for_stdp_stp = get_a_pre__for_stdp_stp();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, tmp_a_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_I_kernel_inh__X__inh_spikes = get_I_kernel_inh__X__inh_spikes();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */
     double tmp_I_kernel_exc__X__exc_spikes = get_I_kernel_exc__X__exc_spikes();
@@ -914,7 +901,6 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     set_tau_m(tmp_tau_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_tau_syn_inh(tmp_tau_syn_inh);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_tau_syn_exc(tmp_tau_syn_exc);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
-    set_t_ref(tmp_t_ref);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_E_L(tmp_E_L);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_V_reset(tmp_V_reset);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_R_max(tmp_R_max);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
@@ -922,8 +908,8 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     set_tau_tr_post__for_stdp_stp(tmp_tau_tr_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_r(tmp_r);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_V_m(tmp_V_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
-    set_a_pre__for_stdp_stp(tmp_a_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_a_post__for_stdp_stp(tmp_a_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
+    set_a_pre__for_stdp_stp(tmp_a_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_I_kernel_inh__X__inh_spikes(tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/AssignTmpDictionaryValue.jinja2 */
     set_I_kernel_exc__X__exc_spikes(tmp_I_kernel_exc__X__exc_spikes);
     //set_normalization_sum(tmp_normalization_sum);
