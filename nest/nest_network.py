@@ -104,6 +104,8 @@ class InputGenerator(object):
         # Tuple storing the sequence index and the index of the current pattern
         self.current_pattern_index = [0, 0]
 
+        self.spike_generators = None
+
         self.use_noise = kwds.get('use_noise', True)
         # self.use_input = kwds.get('use_input', True)
 
@@ -159,9 +161,10 @@ class InputGenerator(object):
         if not self.pattern_list or force_refresh_patterns:
             self.create_patterns()
 
-        # create n spike_generators
-        spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
-                                                                          'origin': t_origin})
+        if self.spike_generators is None:
+            # create n spike_generators if none exist yet
+            self.spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
+                                                                                   'origin': t_origin})
 
             # Connect spike generators to target network
             conn_dict = {'rule': 'pairwise_bernoulli',
@@ -203,16 +206,9 @@ class InputGenerator(object):
 
         # Assign spiketrain_list to spike_generators
         for i in range(self.n):
-            spike_generators[i].set({'spike_times': spiketrain_list[i]})
-
-        # Connect spike generators to target network
-        conn_dict = {'rule': 'pairwise_bernoulli',
-                     'allow_autapses': False,
-                     'p': 1.0}
-        nest.Connect(spike_generators, self.target_network.get_node_collections(), conn_dict)
-
-        # Randomize connection weights
-        randomize_outgoing_connections(spike_generators)
+            # past_spikes = self.spike_generators[i].get('spike_times')
+            # new_spiketrain = past_spikes.tolist().append(spiketrain_list[i])
+            self.spike_generators[i].set({'spike_times': spiketrain_list[i]})
 
     def get_next_pattern_id(self) -> int:
         # if sequence is not over just progress to next id in sequence
