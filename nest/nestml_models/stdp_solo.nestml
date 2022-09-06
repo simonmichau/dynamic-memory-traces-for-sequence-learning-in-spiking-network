@@ -1,0 +1,50 @@
+synapse stdp_solo:
+
+  state:
+    w real = 1. @nest::weight
+    a_pre real = 0.
+    a_post real = 0.
+  end
+
+  parameters:
+    #STDP
+    d ms = 1. ms  @nest::delay  # !!! cannot have a variable called "delay"
+    tau_tr_pre ms = 15 ms       # presynaptic time constant
+    tau_tr_post ms = 30 ms      # postsynaptic time constant
+
+    tau_rise ms = 2 ms
+    tau_decay ms = 20 ms
+    c real = 0.05 * exp(5)
+  end
+
+  equations:
+    a_pre' = -a_pre/tau_tr_pre      # STDP
+    a_post' = -a_post/tau_tr_post   # STDP
+
+    kernel decay_time_kernel = exp(-t / tau_decay)
+    kernel rise_time_kernel = exp(-t / tau_rise)
+    inline y real = convolve(decay_time_kernel, pre_spikes) - convolve(rise_time_kernel, pre_spikes)
+  end
+
+  input:
+    pre_spikes nS <- spike
+    post_spikes nS <- spike
+  end
+
+  output: spike
+
+  # potentiation
+  onReceive(post_spikes):
+    print("Post spike: y(t)={y}")
+    delta_w real = y * c * exp(-w) - 1
+    w += delta_w
+  end
+
+  onReceive(pre_spikes):
+    print("Pre spike: y(t)={y}")
+    delta_w real = y * c * exp(-w) - 1
+    w += delta_w
+
+    deliver_spike(w, d)
+  end
+end
