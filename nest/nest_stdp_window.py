@@ -1,3 +1,11 @@
+"""
+nest_stdp_window.py
+
+---
+
+Visualizes the STDP window of our custom synapse. Because `iaf_psc_exp_wta` is not suited for this due to its reliance
+on InstantaneousRateConnectionEvents, `iaf_psc_exp_test` is used here.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -8,9 +16,7 @@ from nest_utils import plot_weights
 nest.Install("nestmlmodule")
 
 NEURON_MODEL = 'iaf_psc_exp_test'
-SYNAPSE_MODEL = 'stdp_stp'
-RATE_CONN_SYN_MODEL = 'rate_connection_instantaneous'
-regen = False
+SYNAPSE_MODEL = 'stdp'
 
 NEURON_MODEL_NAME = NEURON_MODEL + "__with_" + SYNAPSE_MODEL
 SYNAPSE_MODEL_NAME = SYNAPSE_MODEL + "__with_" + NEURON_MODEL
@@ -47,7 +53,6 @@ def run_network(pre_spike_time, post_spike_time,
                           synapse_model_name,
                           resolution=1., # [ms]
                           delay=1., # [ms]
-                          lmbda=1E-6,
                           sim_time=None,  # if None, computed from pre and post spike times
                           synapse_parameters=None,  # optional dictionary passed to the synapse
                           fname_snip=""):
@@ -58,10 +63,10 @@ def run_network(pre_spike_time, post_spike_time,
     nest.ResetKernel()
     nest.SetKernelStatus({'resolution': resolution})
 
+    weight_var = 'w'
     wr = nest.Create('weight_recorder')
     nest.CopyModel(synapse_model_name, "stdp_nestml_rec",
                 {"weight_recorder": wr[0],
-                 "w": 1.,
                  "delay": delay,
                  "d": delay,
                  "receptor_type": 0})
@@ -75,7 +80,9 @@ def run_network(pre_spike_time, post_spike_time,
 
     # create parrot neurons and connect spike_generators
     pre_neuron = nest.Create("parrot_neuron")
-    post_neuron = nest.Create(neuron_model_name, params={'t_ref': 2000.0})
+    post_neuron = nest.Create(neuron_model_name,
+                              params={'t_ref': 2000.0}  # set t_ref very high so it doesn't affect the investigated time window
+                              )
 
     spikedet_pre = nest.Create("spike_recorder")
     spikedet_post = nest.Create("spike_recorder")
@@ -92,10 +99,10 @@ def run_network(pre_spike_time, post_spike_time,
     # get STDP synapse and weight before protocol
     syn = nest.GetConnections(source=pre_neuron, synapse_model="stdp_nestml_rec")
 
-    initial_weight = nest.GetStatus(syn)[0]["w"]
-    np.testing.assert_allclose(initial_weight, 1)
+    initial_weight = syn.get(weight_var)
+    np.testing.assert_allclose(initial_weight, 0.)
     nest.Simulate(sim_time)
-    updated_weight = nest.GetStatus(syn)[0]["w"]
+    updated_weight = syn.get(weight_var)
 
     actual_t_pre_sp = nest.GetStatus(spikedet_pre)[0]["events"]["times"][0]
     actual_t_post_sp = nest.GetStatus(spikedet_post)[0]["events"]["times"][0]
@@ -129,15 +136,16 @@ def stdp_window(neuron_model_name, synapse_model_name, synapse_parameters=None):
 
 def plot_stdp_window(dt_vec, dw_vec, delay):
     fig, ax = plt.subplots(dpi=120)
-    ax.scatter(dt_vec, dw_vec)
+    # ax.scatter(dt_vec, dw_vec)
+    ax.plot(dt_vec, dw_vec, 'o-', lw=2)
     ax.set_xlabel(r"t_post - t_pre [ms]")
     ax.set_ylabel(r"$\Delta w$")
 
     for _ax in [ax]:
         _ax.grid(which="major", axis="both")
         _ax.grid(which="minor", axis="x", linestyle=":", alpha=.4)
-        #_ax.set_xlim(np.amin(dt_vec), np.amax(dt_vec))
-        _ax.set_xlim(-100., 100.)
+        _ax.set_xlim(np.amin(dt_vec), np.amax(dt_vec))
+        #_ax.set_xlim(-100., 100.)
         #_ax.minorticks_on()
         #_ax.set_xlim(0., sim_time)
 
@@ -145,11 +153,14 @@ def plot_stdp_window(dt_vec, dw_vec, delay):
     ax.plot((np.amin(dt_vec), np.amax(dt_vec)), (0, 0), linestyle="--", color="black", linewidth=2, alpha=.5)
     ax.plot((-delay, -delay), ylim, linestyle="--", color="black", linewidth=2, alpha=.5)
     ax.set_ylim(ylim)
+    ax.grid(False)
     fig.show()
+    plt.show()
 
 
 # weight_update_test(100.0, 20.)
 
+print("STDP Window for: ", NEURON_MODEL_NAME, " with ", SYNAPSE_MODEL_NAME)
 dt_vec, dw_vec, delay = stdp_window(NEURON_MODEL_NAME, SYNAPSE_MODEL_NAME)
 plot_stdp_window(dt_vec, dw_vec, delay)
 
