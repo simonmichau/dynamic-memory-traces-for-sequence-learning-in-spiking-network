@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
- *  Generated from NESTML at time: 2022-09-06 14:32:28.360091
+ *  Generated from NESTML at time: 2022-09-07 10:20:49.098624
 **/
 #ifndef IAF_PSC_EXP_WTA__WITH_STDP_STP
 #define IAF_PSC_EXP_WTA__WITH_STDP_STP
@@ -42,10 +42,8 @@ namespace iaf_psc_exp_wta__with_stdp_stp_names
 {
     const Name _r( "r" );
     const Name _V_m( "V_m" );
-    const Name _a_pre__for_stdp_stp( "a_pre__for_stdp_stp" );
-    const Name _a_post__for_stdp_stp( "a_post__for_stdp_stp" );
-    const Name _I_kernel_inh__X__inh_spikes( "I_kernel_inh__X__inh_spikes" );
     const Name _I_kernel_exc__X__exc_spikes( "I_kernel_exc__X__exc_spikes" );
+    const Name _I_kernel_inh__X__inh_spikes( "I_kernel_inh__X__inh_spikes" );
     const Name _C_m( "C_m" );
     const Name _tau_m( "tau_m" );
     const Name _tau_syn_inh( "tau_syn_inh" );
@@ -53,9 +51,7 @@ namespace iaf_psc_exp_wta__with_stdp_stp_names
     const Name _E_L( "E_L" );
     const Name _V_reset( "V_reset" );
     const Name _R_max( "R_max" );
-    const Name _tau_tr_pre__for_stdp_stp( "tau_tr_pre__for_stdp_stp" );
-    const Name _tau_tr_post__for_stdp_stp( "tau_tr_post__for_stdp_stp" );
-        const Name _normalization_sum( "normalization_sum" );
+    const Name _normalization_sum( "normalization_sum" );
 }
 }
 
@@ -69,19 +65,13 @@ class histentry__iaf_psc_exp_wta__with_stdp_stp
 {
 public:
   histentry__iaf_psc_exp_wta__with_stdp_stp( double t,
-double a_post__for_stdp_stp,
-double a_pre__for_stdp_stp,
 size_t access_counter )
   : t_( t )
-  , a_post__for_stdp_stp_( a_post__for_stdp_stp )
-  , a_pre__for_stdp_stp_( a_pre__for_stdp_stp )
   , access_counter_( access_counter )
   {
   }
 
   double t_;              //!< point in time when spike occurred (in ms)
-   double a_post__for_stdp_stp_;
-   double a_pre__for_stdp_stp_;
   size_t access_counter_; //!< access counter to enable removal of the entry, once all neurons read it
 };
 
@@ -148,8 +138,6 @@ E_L [mV]  Resting potential
 V_reset [mV]  Reset value of the membrane potential
  Maximum rate within current WTA circuit
 R_max [Hz]  Maximum rate within current WTA circuit
-tau_tr_pre__for_stdp_stp [ms]  presynaptic time constant
-tau_tr_post__for_stdp_stp [ms]  postsynaptic time constant
 
 
   Dynamic state variables:
@@ -190,7 +178,7 @@ public:
 
   using nest::Node::handles_test_event;
   using nest::Node::handle;
-    using nest::Node::sends_secondary_event;
+  using nest::Node::sends_secondary_event;
   /**
    * Used to validate that we can send nest::SpikeEvent to desired target:port.
   **/
@@ -206,15 +194,15 @@ public:
   void handle(nest::SpikeEvent &);        //! accept spikes
   void handle(nest::CurrentEvent &);      //! accept input current
   void handle(nest::DataLoggingRequest &);//! allow recording with multimeter
-    void handle(nest::InstantaneousRateConnectionEvent &);//! accept continuous rate events
+  void handle(nest::InstantaneousRateConnectionEvent &);//! accept continuous rate events
   nest::port handles_test_event(nest::SpikeEvent&, nest::port);
   nest::port handles_test_event(nest::CurrentEvent&, nest::port);
   nest::port handles_test_event(nest::DataLoggingRequest&, nest::port);
-    nest::port handles_test_event(nest::InstantaneousRateConnectionEvent&, nest::port);
-    void sends_secondary_event(nest::InstantaneousRateConnectionEvent&)
-    {
+  nest::port handles_test_event(nest::InstantaneousRateConnectionEvent&, nest::port);
+  void sends_secondary_event(nest::InstantaneousRateConnectionEvent&)
+  {
 
-    }
+  }
 
   // -------------------------------------------------------------------------
   //   Functions for getting/setting parameters and state values.
@@ -269,24 +257,14 @@ public:
     S_.V_m = __v;
   }
 
-  inline double get_a_pre__for_stdp_stp() const
+  inline double get_I_kernel_exc__X__exc_spikes() const
   {
-    return S_.a_pre__for_stdp_stp;
+    return S_.I_kernel_exc__X__exc_spikes;
   }
 
-  inline void set_a_pre__for_stdp_stp(const double __v)
+  inline void set_I_kernel_exc__X__exc_spikes(const double __v)
   {
-    S_.a_pre__for_stdp_stp = __v;
-  }
-
-  inline double get_a_post__for_stdp_stp() const
-  {
-    return S_.a_post__for_stdp_stp;
-  }
-
-  inline void set_a_post__for_stdp_stp(const double __v)
-  {
-    S_.a_post__for_stdp_stp = __v;
+    S_.I_kernel_exc__X__exc_spikes = __v;
   }
 
   inline double get_I_kernel_inh__X__inh_spikes() const
@@ -297,16 +275,6 @@ public:
   inline void set_I_kernel_inh__X__inh_spikes(const double __v)
   {
     S_.I_kernel_inh__X__inh_spikes = __v;
-  }
-
-  inline double get_I_kernel_exc__X__exc_spikes() const
-  {
-    return S_.I_kernel_exc__X__exc_spikes;
-  }
-
-  inline void set_I_kernel_exc__X__exc_spikes(const double __v)
-  {
-    S_.I_kernel_exc__X__exc_spikes = __v;
   }
 
 
@@ -384,26 +352,6 @@ public:
     P_.R_max = __v;
   }
 
-  inline double get_tau_tr_pre__for_stdp_stp() const
-  {
-    return P_.tau_tr_pre__for_stdp_stp;
-  }
-
-  inline void set_tau_tr_pre__for_stdp_stp(const double __v)
-  {
-    P_.tau_tr_pre__for_stdp_stp = __v;
-  }
-
-  inline double get_tau_tr_post__for_stdp_stp() const
-  {
-    return P_.tau_tr_post__for_stdp_stp;
-  }
-
-  inline void set_tau_tr_post__for_stdp_stp(const double __v)
-  {
-    P_.tau_tr_post__for_stdp_stp = __v;
-  }
-
 
   // -------------------------------------------------------------------------
   //   Getters/setters for internals
@@ -429,16 +377,6 @@ public:
     V_.__P__V_m__V_m = __v;
   }
 
-  inline double get___P__V_m__I_kernel_inh__X__inh_spikes() const
-  {
-    return V_.__P__V_m__I_kernel_inh__X__inh_spikes;
-  }
-
-  inline void set___P__V_m__I_kernel_inh__X__inh_spikes(const double __v)
-  {
-    V_.__P__V_m__I_kernel_inh__X__inh_spikes = __v;
-  }
-
   inline double get___P__V_m__I_kernel_exc__X__exc_spikes() const
   {
     return V_.__P__V_m__I_kernel_exc__X__exc_spikes;
@@ -449,34 +387,14 @@ public:
     V_.__P__V_m__I_kernel_exc__X__exc_spikes = __v;
   }
 
-  inline double get___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp() const
+  inline double get___P__V_m__I_kernel_inh__X__inh_spikes() const
   {
-    return V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;
+    return V_.__P__V_m__I_kernel_inh__X__inh_spikes;
   }
 
-  inline void set___P__a_pre__for_stdp_stp__a_pre__for_stdp_stp(const double __v)
+  inline void set___P__V_m__I_kernel_inh__X__inh_spikes(const double __v)
   {
-    V_.__P__a_pre__for_stdp_stp__a_pre__for_stdp_stp = __v;
-  }
-
-  inline double get___P__a_post__for_stdp_stp__a_post__for_stdp_stp() const
-  {
-    return V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp;
-  }
-
-  inline void set___P__a_post__for_stdp_stp__a_post__for_stdp_stp(const double __v)
-  {
-    V_.__P__a_post__for_stdp_stp__a_post__for_stdp_stp = __v;
-  }
-
-  inline double get___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes() const
-  {
-    return V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;
-  }
-
-  inline void set___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes(const double __v)
-  {
-    V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes = __v;
+    V_.__P__V_m__I_kernel_inh__X__inh_spikes = __v;
   }
 
   inline double get___P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes() const
@@ -489,20 +407,28 @@ public:
     V_.__P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes = __v;
   }
 
-    inline double get_normalization_sum() const
-    {
-        return V_.normalization_sum;
-    }
+  inline double get___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes() const
+  {
+    return V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;
+  }
 
-    inline double set_normalization_sum(const double __v)
-    {
-        V_.normalization_sum = __v;
-    }
+  inline void set___P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes(const double __v)
+  {
+    V_.__P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes = __v;
+  }
+
+  inline double get_normalization_sum() const
+  {
+      return V_.normalization_sum;
+  }
+
+  inline double set_normalization_sum(const double __v)
+  {
+      V_.normalization_sum = __v;
+  }
 
 
   /* getters/setters for variables transferred from synapse */
-  double get_a_pre__for_stdp_stp( double t, const bool before_increment = true );
-  double get_a_post__for_stdp_stp( double t, const bool before_increment = true );
 
 protected:
   // support for spike archiving
@@ -539,8 +465,6 @@ private:
   std::deque< histentry__iaf_psc_exp_wta__with_stdp_stp > history_;
 
   // cache for initial values
-  double a_pre__for_stdp_stp__iv;
-  double a_post__for_stdp_stp__iv;
 
 private:
   
@@ -607,11 +531,7 @@ private:
     //!  Maximum rate within current WTA circuit
     double V_reset;/* generated by directives/MemberDeclaration.jinja2 */ 
     //!  Maximum rate within current WTA circuit
-    double R_max;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  presynaptic time constant
-    double tau_tr_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    //!  postsynaptic time constant
-    double tau_tr_post__for_stdp_stp;
+    double R_max;
 
     /**
      * Initialize parameters to their default values.
@@ -645,11 +565,8 @@ private:
     long r;/* generated by directives/MemberDeclaration.jinja2 */ 
     //!  Membrane potential
     double V_m;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double I_kernel_exc__X__exc_spikes;
-        //double normalization_sum;
+    double I_kernel_exc__X__exc_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
+    double I_kernel_inh__X__inh_spikes;
 
     State_();
   };
@@ -673,13 +590,11 @@ private:
   {/* generated by directives/MemberDeclaration.jinja2 */ 
     double __h;/* generated by directives/MemberDeclaration.jinja2 */ 
     double __P__V_m__V_m;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__V_m__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
     double __P__V_m__I_kernel_exc__X__exc_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__a_pre__for_stdp_stp__a_pre__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__a_post__for_stdp_stp__a_post__for_stdp_stp;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
-    double __P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;
-        double normalization_sum;
+    double __P__V_m__I_kernel_inh__X__inh_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
+    double __P__I_kernel_exc__X__exc_spikes__I_kernel_exc__X__exc_spikes;/* generated by directives/MemberDeclaration.jinja2 */ 
+    double __P__I_kernel_inh__X__inh_spikes__I_kernel_inh__X__inh_spikes;
+    double normalization_sum;
   };
 
   /**
@@ -831,18 +746,14 @@ inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) con
   def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn_exc, get_tau_syn_exc());/* generated by directives/WriteInDictionary.jinja2 */ 
   def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_E_L, get_E_L());/* generated by directives/WriteInDictionary.jinja2 */ 
   def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, get_V_reset());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_pre__for_stdp_stp, get_tau_tr_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_post__for_stdp_stp, get_tau_tr_post__for_stdp_stp());
+  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());
 
   // initial values for state variables in ODE or kernel/* generated by directives/WriteInDictionary.jinja2 */ 
   def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, get_r());/* generated by directives/WriteInDictionary.jinja2 */ 
   def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, get_V_m());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, get_a_pre__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, get_a_post__for_stdp_stp());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, get_I_kernel_inh__X__inh_spikes());/* generated by directives/WriteInDictionary.jinja2 */ 
-  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, get_I_kernel_exc__X__exc_spikes());
-    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum, get_normalization_sum());
+  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, get_I_kernel_exc__X__exc_spikes());/* generated by directives/WriteInDictionary.jinja2 */ 
+  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, get_I_kernel_inh__X__inh_spikes());
+  def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum, get_normalization_sum());
 
   ArchivingNode::get_status( __d );
 
@@ -865,27 +776,17 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
   double tmp_V_reset = get_V_reset();
   updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_reset, tmp_V_reset);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
   double tmp_R_max = get_R_max();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, tmp_R_max);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_tr_pre__for_stdp_stp = get_tau_tr_pre__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_pre__for_stdp_stp, tmp_tau_tr_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_tau_tr_post__for_stdp_stp = get_tau_tr_post__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_tr_post__for_stdp_stp, tmp_tau_tr_post__for_stdp_stp);
+  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, tmp_R_max);
 
   // initial values for state variables in ODE or kernel/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
   long tmp_r = get_r();
   updateValue<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, tmp_r);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
   double tmp_V_m = get_V_m();
   updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, tmp_V_m);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_a_pre__for_stdp_stp = get_a_pre__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_pre__for_stdp_stp, tmp_a_pre__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_a_post__for_stdp_stp = get_a_post__for_stdp_stp();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_a_post__for_stdp_stp, tmp_a_post__for_stdp_stp);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
-  double tmp_I_kernel_inh__X__inh_spikes = get_I_kernel_inh__X__inh_spikes();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
   double tmp_I_kernel_exc__X__exc_spikes = get_I_kernel_exc__X__exc_spikes();
-  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, tmp_I_kernel_exc__X__exc_spikes);
-    //double tmp_normalization_sum = get_normalization_sum();
-    //updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum, tmp_normalization_sum);
+  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, tmp_I_kernel_exc__X__exc_spikes);/* generated by directives/ReadFromDictionaryToTmp.jinja2 */ 
+  double tmp_I_kernel_inh__X__inh_spikes = get_I_kernel_inh__X__inh_spikes();
+  updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, tmp_I_kernel_inh__X__inh_spikes);
 
   // We now know that (ptmp, stmp) are consistent. We do not
   // write them back to (P_, S_) before we are also sure that
@@ -901,15 +802,10 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
   set_E_L(tmp_E_L);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
   set_V_reset(tmp_V_reset);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
   set_R_max(tmp_R_max);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_tr_pre__for_stdp_stp(tmp_tau_tr_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_tau_tr_post__for_stdp_stp(tmp_tau_tr_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
   set_r(tmp_r);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
   set_V_m(tmp_V_m);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_a_pre__for_stdp_stp(tmp_a_pre__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_a_post__for_stdp_stp(tmp_a_post__for_stdp_stp);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_I_kernel_inh__X__inh_spikes(tmp_I_kernel_inh__X__inh_spikes);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
-  set_I_kernel_exc__X__exc_spikes(tmp_I_kernel_exc__X__exc_spikes);
-  //set_normalization_sum(tmp_normalization_sum);
+  set_I_kernel_exc__X__exc_spikes(tmp_I_kernel_exc__X__exc_spikes);/* generated by directives/AssignTmpDictionaryValue.jinja2 */ 
+  set_I_kernel_inh__X__inh_spikes(tmp_I_kernel_inh__X__inh_spikes);
 
 
 
