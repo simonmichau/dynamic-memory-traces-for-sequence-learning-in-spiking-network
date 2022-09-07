@@ -1,0 +1,43 @@
+synapse stp:
+
+  state:
+    w real = 1. @nest::weight
+    u real = U  # facilitation
+    x real = 1.  # depression
+  end
+
+  parameters:
+    d ms = 1. ms  @nest::delay  # !!! cannot have a variable called "delay"
+
+    #STP
+    U real = random_normal(0.5, 0.25)
+    tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
+    tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
+  end
+
+  equations:
+    u' = (U - u) / tau_f    # STP
+    x' = (1 - x) / tau_d    # STP
+  end
+
+  input:
+    pre_spikes nS <- spike
+    post_spikes nS <- spike
+  end
+
+  output: spike
+
+  # potentiation
+  onReceive(post_spikes):
+    w += 0
+  end
+
+  onReceive(pre_spikes):
+    w = u * x * w                # compute effective weight changing the conductance
+
+    x -= x * u                            # STD
+    u += U * (1 - u)                      # STF
+
+    deliver_spike(w, d)
+  end
+end
