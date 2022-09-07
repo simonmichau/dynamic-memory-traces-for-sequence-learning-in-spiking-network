@@ -40,9 +40,9 @@ set( MODULE_NAME ${SHORT_NAME} )
 set( MODULE_SOURCES
     nestmlmodule.h nestmlmodule.cpp
     
-      iaf_psc_exp_wta.cpp iaf_psc_exp_wta.h
+      iaf_psc_exp_test.cpp iaf_psc_exp_test.h
     
-      iaf_psc_exp_wta__with_stdp_solo.cpp iaf_psc_exp_wta__with_stdp_solo.h
+      iaf_psc_exp_test__with_stdp.cpp iaf_psc_exp_test__with_stdp.h
     
     )
 

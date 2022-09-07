@@ -19,7 +19,7 @@
 *  You should have received a copy of the GNU General Public License
 *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 *
-*  2022-09-06 14:45:58.789917
+*  2022-09-07 10:02:51.716570
 */
 
 // Includes from nestkernel:
@@ -44,12 +44,12 @@
 #include "nestmlmodule.h"
 
 
-#include "iaf_psc_exp_wta.h"
+#include "iaf_psc_exp_test.h"
 
-#include "iaf_psc_exp_wta__with_stdp_solo.h"
+#include "iaf_psc_exp_test__with_stdp.h"
 
 
-#include "stdp_solo__with_iaf_psc_exp_wta.h"
+#include "stdp__with_iaf_psc_exp_test.h"
 
 // -- Interface to dynamic module loader ---------------------------------------
 
@@ -104,13 +104,13 @@ void
 nestmlmodule::init( SLIInterpreter* i )
 {
   
-    nest::kernel().model_manager.register_node_model<iaf_psc_exp_wta>("iaf_psc_exp_wta");
+    nest::kernel().model_manager.register_node_model<iaf_psc_exp_test>("iaf_psc_exp_test");
   
-    nest::kernel().model_manager.register_node_model<iaf_psc_exp_wta__with_stdp_solo>("iaf_psc_exp_wta__with_stdp_solo");
+    nest::kernel().model_manager.register_node_model<iaf_psc_exp_test__with_stdp>("iaf_psc_exp_test__with_stdp");
   
 
   
-  nest::register_connection_model< nest::stdp_solo__with_iaf_psc_exp_wta >( "stdp_solo__with_iaf_psc_exp_wta" );
+  nest::register_connection_model< nest::stdp__with_iaf_psc_exp_test >( "stdp__with_iaf_psc_exp_test" );
   
 
 } // nestmlmodule::init()
