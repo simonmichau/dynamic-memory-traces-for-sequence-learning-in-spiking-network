@@ -5,7 +5,7 @@ stdp.nestml - STDP synapse model
 Description
 +++++++++++
 
-Models STDP synapses using a weight update rule. Whenever a post spike occurs the synaptic weight
+Models STDP synapses using a weight update rule from [1]_. Whenever a post spike occurs the synaptic weight
 is changed by `w_diff = y * c * exp(-w) - 1`, where *y* is the current value of the EPSP, w the synaptic weight of the
 synapse and c is a shaping parameter that is set to 0.05*exp(5). 0.05 is the learning rate and exp(5) realizes an offset
 used to bring all weights into the positive range.
@@ -18,7 +18,7 @@ References
        33 (28) 11515-11529. URL: https://www.jneurosci.org/content/33/28/11515
 
 """
-synapse stdp_solo:
+synapse stdp:
 
   state:
     w real = 0. @nest::weight
@@ -27,9 +27,9 @@ synapse stdp_solo:
   parameters:
     #STDP
     d ms = 1. ms  @nest::delay  # !!! cannot have a variable called "delay"
-    tau_rise ms = 2 ms @homogeneous
-    tau_decay ms = 20 ms @homogeneous
-    c real = 0.05 * exp(5) @homogeneous
+    tau_rise ms = 2 ms
+    tau_decay ms = 20 ms
+    c real = 0.05 * exp(5)
   end
 
   equations:
