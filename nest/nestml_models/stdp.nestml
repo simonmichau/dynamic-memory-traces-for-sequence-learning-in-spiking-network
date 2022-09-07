@@ -1,0 +1,58 @@
+"""
+stdp.nestml - STDP synapse model
+#########################################################################
+
+Description
++++++++++++
+
+Models STDP synapses using a weight update rule. Whenever a post spike occurs the synaptic weight
+is changed by `w_diff = y * c * exp(-w) - 1`, where *y* is the current value of the EPSP, w the synaptic weight of the
+synapse and c is a shaping parameter that is set to 0.05*exp(5). 0.05 is the learning rate and exp(5) realizes an offset
+used to bring all weights into the positive range.
+
+References
+++++++++++
+
+.. [1] Klampfl S, Maass W (2013). Emergence of Dynamic Memory Traces in Cortical
+       Microcircuit Models through STDP. The Journal of Neuroscience,
+       33 (28) 11515-11529. URL: https://www.jneurosci.org/content/33/28/11515
+
+"""
+synapse stdp_solo:
+
+  state:
+    w real = 0. @nest::weight
+  end
+
+  parameters:
+    #STDP
+    d ms = 1. ms  @nest::delay  # !!! cannot have a variable called "delay"
+    tau_rise ms = 2 ms @homogeneous
+    tau_decay ms = 20 ms @homogeneous
+    c real = 0.05 * exp(5) @homogeneous
+  end
+
+  equations:
+    kernel decay_time_kernel = exp(-t / tau_decay)
+    kernel rise_time_kernel = exp(-t / tau_rise)
+    inline y real = convolve(decay_time_kernel, pre_spikes) - convolve(rise_time_kernel, pre_spikes)
+  end
+
+  input:
+    pre_spikes nS <- spike
+    post_spikes nS <- spike
+  end
+
+  output: spike
+
+  # potentiation
+  onReceive(post_spikes):
+    # print("Post spike: y(t)={y}")
+    w += y * c * exp(-w) - 1
+  end
+
+  onReceive(pre_spikes):
+    w += 0
+    deliver_spike(w, d)
+  end
+end
