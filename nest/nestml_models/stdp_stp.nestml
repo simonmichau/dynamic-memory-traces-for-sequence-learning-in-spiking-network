@@ -1,34 +1,34 @@
 synapse stdp_stp:
 
   state:
-    w real = 1. @nest::weight
+    w real = 0. @nest::weight  # 1.?
     u real = U  # facilitation
     x real = 1.  # depression
-    a_pre real = 0.
-    a_post real = 0.
   end
 
   parameters:
-    #STP
+    d ms = 1. ms  @nest::delay  # !!! cannot have a variable called "delay"
+
+    # STP
     U real = random_normal(0.5, 0.25)
     tau_d ms = random_normal(110 ms, 55 ms)     # depression timescale
     tau_f ms = random_normal(5 ms, 2.5 ms)    # facilitation timescale
 
-    #STDP
-    d ms = 3. ms  @nest::delay  # !!! cannot have a variable called "delay"
-    tau_tr_pre ms = 15 ms       # presynaptic time constant
-    tau_tr_post ms = 30 ms      # postsynaptic time constant
-    A_plus real = 0.48          # presynaptic amplitude
-    A_minus real = -0.24        # postsynaptic amplitude
-
+    # STDP
+    tau_rise ms = 2 ms
+    tau_decay ms = 20 ms
+    c real = 0.05 * exp(5)
   end
 
   equations:
-    u' = (U - u) / tau_f    # STP
-    x' = (1 - x) / tau_d    # STP
+    # STP
+    u' = (U - u) / tau_f
+    x' = (1 - x) / tau_d
 
-    a_pre' = -a_pre/tau_tr_pre      # STDP
-    a_post' = -a_post/tau_tr_post   # STDP
+    # STDP
+    kernel decay_time_kernel = exp(-t / tau_decay)
+    kernel rise_time_kernel = exp(-t / tau_rise)
+    inline y real = convolve(decay_time_kernel, pre_spikes) - convolve(rise_time_kernel, pre_spikes)
   end
 
   input:
@@ -38,9 +38,8 @@ synapse stdp_stp:
 
   output: spike
 
-  # potentiation
   onReceive(post_spikes):
-    w += a_pre
+    w += y * c * exp(-w) - 1
   end
 
   onReceive(pre_spikes):

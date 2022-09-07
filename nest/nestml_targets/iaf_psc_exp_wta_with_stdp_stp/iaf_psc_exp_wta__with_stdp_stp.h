@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
- *  Generated from NESTML at time: 2022-09-07 10:20:49.098624
+ *  Generated from NESTML at time: 2022-09-07 10:37:33.954790
 **/
 #ifndef IAF_PSC_EXP_WTA__WITH_STDP_STP
 #define IAF_PSC_EXP_WTA__WITH_STDP_STP

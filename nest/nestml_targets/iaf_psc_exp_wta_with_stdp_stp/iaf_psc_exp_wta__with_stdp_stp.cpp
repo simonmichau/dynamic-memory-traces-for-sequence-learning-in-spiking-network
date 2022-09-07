@@ -19,7 +19,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
- *  Generated from NESTML at time: 2022-09-07 10:20:49.098624
+ *  Generated from NESTML at time: 2022-09-07 10:37:33.954790
 **/
 
 // C++ includes:
@@ -56,9 +56,10 @@ template <> void RecordablesMap<iaf_psc_exp_wta__with_stdp_stp>::create()
     // add state variables to recordables map
    insert_(iaf_psc_exp_wta__with_stdp_stp_names::_V_m, &iaf_psc_exp_wta__with_stdp_stp::get_V_m);
    insert_(iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_exc__X__exc_spikes, &iaf_psc_exp_wta__with_stdp_stp::get_I_kernel_exc__X__exc_spikes);
+   insert_(iaf_psc_exp_wta__with_stdp_stp_names::_I_kernel_inh__X__inh_spikes, &iaf_psc_exp_wta__with_stdp_stp::get_I_kernel_inh__X__inh_spikes);
    insert_(iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum, &iaf_psc_exp_wta__with_stdp_stp::get_normalization_sum);
 
-    // Add vector variables  
+    // Add vector variables
   }
 }
 
@@ -241,12 +242,12 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const & origin,const long
 {
   const double __resolution = nest::Time::get_resolution().get_ms();  // do not remove, this is necessary for the resolution() function
 
-    const size_t buffer_size = nest::kernel().connection_manager.get_min_delay();
-    const double wfr_tol = nest::kernel().simulation_manager.get_wfr_tol();
-    bool wfr_tol_exceeded = false;
+  const size_t buffer_size = nest::kernel().connection_manager.get_min_delay();
+  const double wfr_tol = nest::kernel().simulation_manager.get_wfr_tol();
+  bool wfr_tol_exceeded = false;
 
-    // allocate memory to store rates to be sent by rate events
-    std::vector< double > new_voltage( buffer_size, 0.0 );
+  // allocate memory to store rates to be sent by rate events
+  std::vector< double > new_voltage( buffer_size, 0.0 );
 
   for ( long lag = from ; lag < to ; ++lag )
   {
@@ -276,18 +277,18 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const & origin,const long
     // voltage logging
     B_.logger_.record_data(origin.get_steps() + lag);
 
-        new_voltage[ lag ] = S_.V_m;
+    new_voltage[ lag ] = S_.V_m;
   }
 
-    // Send rate-neuron-event
-    //std::cout << "Sending InstantaneousRateConnectionEvent..." << std::endl << std::flush;
+  // Send rate-neuron-event
+  //std::cout << "Sending InstantaneousRateConnectionEvent..." << std::endl << std::flush;
 
-    nest::InstantaneousRateConnectionEvent u_t_event;
-    u_t_event.set_coeffarray( new_voltage );
-    nest::kernel().event_delivery_manager.send_secondary( *this, u_t_event );
+  nest::InstantaneousRateConnectionEvent u_t_event;
+  u_t_event.set_coeffarray( new_voltage );
+  nest::kernel().event_delivery_manager.send_secondary( *this, u_t_event );
 
-    // could reset the normalization factor to 0 here
-    V_.normalization_sum = 0.;
+  // could reset the normalization factor to 0 here
+  V_.normalization_sum = 0.;
 }
 
 // Do not move this function as inline to h-file. It depends on
