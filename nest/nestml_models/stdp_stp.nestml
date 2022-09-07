@@ -43,11 +43,12 @@ synapse stdp_stp:
   end
 
   onReceive(pre_spikes):
-    w = u * x * w                # compute effective weight changing the conductance
+    w += 0  # this is needed, otherwise NESTML complains for some weird reason
+    w_eff real = u * x * w                # compute effective weight changing the conductance
 
     x -= x * u                            # STD
     u += U * (1 - u)                      # STF
 
-    deliver_spike(w, d)
+    deliver_spike(w_eff, d)
   end
 end
