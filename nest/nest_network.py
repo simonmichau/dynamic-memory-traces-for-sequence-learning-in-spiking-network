@@ -5,6 +5,7 @@ from typing import Optional
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 import nest
 
 from nest_utils import *
@@ -14,14 +15,6 @@ from pynestml.frontend.pynestml_frontend import generate_target, generate_nest_t
 
 nest.ResetKernel()
 nest.SetKernelStatus({"rng_seed": 5116})
-
-NEURON_MODEL = 'iaf_psc_exp_wta'
-SYNAPSE_MODEL = 'stdp_stp'
-RATE_CONN_SYN_MODEL = 'rate_connection_instantaneous'
-regen = False
-
-_NEURON_MODEL_NAME = NEURON_MODEL + "__with_" + SYNAPSE_MODEL
-_SYNAPSE_MODEL_NAME = SYNAPSE_MODEL + "__with_" + NEURON_MODEL
 
 
 class WTACircuit:
@@ -443,10 +436,28 @@ class Network(object):
             plt.show()
 
 
+NEURON_MODEL = 'iaf_psc_exp_wta'
+SYNAPSE_MODEL = 'stdp_stp'
+RATE_CONN_SYN_MODEL = 'rate_connection_instantaneous'
+_NEURON_MODEL_NAME = NEURON_MODEL + "__with_" + SYNAPSE_MODEL
+_SYNAPSE_MODEL_NAME = SYNAPSE_MODEL + "__with_" + NEURON_MODEL
+regen = False
+
+
 if __name__ == '__main__':
+    print(sys.argv)
+    if len(sys.argv) > 1:
+        task = sys.argv[1]
+    else:
+        task = ""
+
     # Setup nest
     nest.resolution = 1.
-    generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL, regen=regen)
+    if task == 'regen_models':
+        generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL, regen=True, target=NEURON_MODEL + "_with_" + SYNAPSE_MODEL)
+        exit()
+    else:
+        generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL, regen=regen)
     print(_SYNAPSE_MODEL_NAME, " installed: ", _SYNAPSE_MODEL_NAME in nest.synapse_models)
     print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
     nest.print_time = True
