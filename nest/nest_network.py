@@ -452,9 +452,7 @@ if __name__ == '__main__':
     nest.print_time = True
 
     # Initialize weight recorder
-    weight_recorder = nest.Create('weight_recorder')
-    nest.CopyModel(_SYNAPSE_MODEL_NAME, "synapse_rec", {"weight_recorder": weight_recorder})
-    _SYNAPSE_MODEL_NAME = "synapse_rec"
+    _SYNAPSE_MODEL_NAME, weight_recorder = init_weight_recorder(_SYNAPSE_MODEL_NAME)
 
     # Initialize Network
     grid = Network()

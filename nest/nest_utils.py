@@ -162,3 +162,11 @@ def plot_weights(weight_recorder):
     ax.set_xlim(0, np.amax(weight_recorder.get('events')['times']))
     ax.plot(t_vec, w_vec)
     fig.show()
+
+
+def init_weight_recorder(synapse_model_name):
+    """Creates a copy of the given *synapse_model_name* with a weight recorder added.
+    Returns the copies model name and the weight recorder"""
+    weight_recorder = nest.Create('weight_recorder')
+    nest.CopyModel(synapse_model_name, synapse_model_name + "_rec", {"weight_recorder": weight_recorder})
+    return synapse_model_name + "_rec", weight_recorder
