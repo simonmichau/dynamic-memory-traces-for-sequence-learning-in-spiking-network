@@ -137,7 +137,7 @@ def measure_network(network, id_list: list = None, node_collection=None, readout
     return id_list
 
 
-def generate_nest_code(neuron_model: str, synapse_model: str, regen=True):
+def generate_nest_code(neuron_model: str, synapse_model: str, regen=True, target="nestml_target"):
     """Generates the code for 'iaf_psc_exp_wta' neuron model and 'stdp_stp' synapse model."""
     if regen:
         codegen_opts = {"neuron_synapse_pairs": [{'neuron': neuron_model,
@@ -146,8 +146,9 @@ def generate_nest_code(neuron_model: str, synapse_model: str, regen=True):
                                                   }]}
         generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/" + neuron_model + ".nestml",
                                          os.environ["PWD"] + "/nestml_models/" + synapse_model + ".nestml"],
-                             target_path=os.environ["PWD"] + "/nestml_target",
+                             target_path=os.environ["PWD"] + "/nestml_targets/" + target,
                              codegen_opts=codegen_opts,
+                             module_name="nestmlmodule",
                              dev=True)
     nest.Install("nestmlmodule")
     mangled_neuron_name = neuron_model + "__with_" + synapse_model
