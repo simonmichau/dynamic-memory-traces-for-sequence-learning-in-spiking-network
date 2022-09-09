@@ -59,7 +59,7 @@ def run_simulation(inpgen, t):
 
 
 def measure_network(network, id_list: list = None, node_collection=None, readout_size: int = None,
-                            inpgen=None, t_sim: float = 5000.0, save_figures: bool = False):
+                    inpgen=None, t_sim: float = 5000.0, save_figures: bool = False):
     """
     Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes, membrane potential and presented
     patterns. Requires an **InputGenerator** object for pattern input generation.
@@ -73,7 +73,7 @@ def measure_network(network, id_list: list = None, node_collection=None, readout
     if id_list is not None:  # Readout Mode 1
         node_collection = nest.NodeCollection(id_list)
     elif node_collection is not None:  # Readout Mode 2
-        pass  # Do nothing
+        id_list = list(node_collection.get('global_id'))
     elif readout_size is not None:  # Readout Mode 3
         global_ids = network.get_node_collections().get('global_id')
         id_list = []
@@ -84,6 +84,7 @@ def measure_network(network, id_list: list = None, node_collection=None, readout
         node_collection = nest.NodeCollection(id_list)
     else:  # Readout Mode 4
         node_collection = network.get_node_collections()
+        id_list = list(network.get_node_collections().get('global_id'))
 
     if network.multimeter is None:
         network.multimeter = nest.Create('multimeter')
