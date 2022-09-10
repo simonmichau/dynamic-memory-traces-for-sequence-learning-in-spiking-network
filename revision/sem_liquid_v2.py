@@ -87,9 +87,6 @@ class SEMLiquidParams(object):
         # use a correction within the learning rule that allows inputs of non-constant rate
         self.use_poisson_correction = kwds.get('use_poisson_correction', False)
         self.poisson_correction_steps = kwds.get('poisson_correction_steps', 1e4)
-        # apply entropy regularization method
-        self.use_entropy_regularization = kwds.get('use_entropy_regularization', False)
-        self.eta_rho = kwds.get('eta_rho', 1e-4)
         # apply weight regularization method ("prior")
         self.use_weight_regularization = kwds.get('use_weight_regularization', False)
         self.prior = kwds.get('prior','lognormal')
@@ -634,31 +631,6 @@ class SEMLiquid(object):
             self.rdyn = numpy.ones(self.rdyn.shape)
             self.isi = numpy.zeros(self.nInputs+self.tsize)
 
-    # calculate input and recurrent entropy
-    def calculate_entropies(self):
-        #if self.use_entropy_regularization:
-        if self.use_multiple_synapses:
-            u_inp = numpy.sum(self.W[:self.tsize,1:1+self.nInputs]* \
-                self.W_map[:self.tsize,:self.nInputs]*self.rec_mod[:self.tsize,1:1+self.nInputs]* \
-                self.Y[:self.tsize,:self.nInputs], axis=1)
-        else:
-            u_inp = numpy.dot(self.W[:self.tsize,1:1+self.nInputs]* \
-                self.W_map[:self.tsize,:self.nInputs]*self.rec_mod[:self.tsize,1:1+self.nInputs], self.Y[:self.nInputs])
-        expU_inp = numpy.exp(u_inp - numpy.max(u_inp))
-        self.Zp_inp = expU_inp / numpy.dot(self.groups[:self.tsize,:self.tsize], expU_inp)
-        if self.use_multiple_synapses:
-            u_rec = numpy.sum(self.W[:self.tsize,1+self.nInputs:]* \
-                self.W_map[:self.tsize,self.nInputs:]*self.rec_mod[:self.tsize,1+self.nInputs:]* \
-                self.Y[:self.tsize,self.nInputs:], axis=1)
-        else:
-            u_rec = numpy.dot(self.W[:self.tsize,1+self.nInputs:]* \
-                self.W_map[:self.tsize,self.nInputs:]*self.rec_mod[:self.tsize,1+self.nInputs:], self.Y[self.nInputs:])
-        expU_rec = numpy.exp(u_rec - numpy.max(u_rec))
-        self.Zp_rec = expU_rec / numpy.dot(self.groups[:self.tsize,:self.tsize], expU_rec)
-        self.H_inp = entropy(self.Zp_inp)
-        self.H_rec = entropy(self.Zp_rec)
-        #print self.H_inp, self.H_rec, self.Zp_inp.shape, self.Zp_rec.shape
-
     # this is the main method that advances the simulation by one time step
     # x is the input, t is the optional target vector for the readout WTAs
     def process_input(self, x, t=None):
@@ -715,8 +687,6 @@ class SEMLiquid(object):
 
         # calculate and apply the weight update
         if self.do_train:
-            if self.use_entropy_regularization:
-                self.rho -= self.eta_rho*(self.H_inp - self.H_rec)
             self.W_mod = self.beta*self.inp_W + self.rdt_W + self.alpha*self.rec_W + self.pr_W
             if self.use_variance_tracking:
                 self.etas = self.eta*(self.Q-self.S**2)/(numpy.exp(-self.S)+1)
