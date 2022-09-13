@@ -39,7 +39,8 @@ synapse stdp_stp:
   output: spike
 
   onReceive(post_spikes):
-    w += y * c * exp(-w) - 1
+    w_diff real = y * c * exp(-w) - 1
+    w += w_diff
   end
 
   onReceive(pre_spikes):
@@ -49,6 +50,6 @@ synapse stdp_stp:
     x -= x * u                            # STD
     u += U * (1 - u)                      # STF
 
-    deliver_spike(w_eff, d)
+    deliver_spike(1.0, d) # TODO replace 1.0 with w_eff
   end
 end
