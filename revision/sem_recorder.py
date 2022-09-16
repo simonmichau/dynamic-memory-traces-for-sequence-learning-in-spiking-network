@@ -9,6 +9,9 @@ class Recorder(object):
         self.idx = 0
         self.step = 0
 
+        self.continuous_inp_rec = numpy.zeros((num_steps,num_fields))
+        self.continuous_rec_rec = numpy.zeros((num_steps,num_fields))
+
     def record(self, values):
         values = numpy.asarray(values)
         if values.ndim==0:

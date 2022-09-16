@@ -633,6 +633,10 @@ class SEMLiquid(object):
         self.r = self.rmax*self.Zp
         self.r[self.tsize:] *= self.rmax_rdt*self.Zp[self.tsize:]
         self.Z = (numpy.random.exponential(1.0/self.r) <= self.dt).astype(int)
+        if self.step in [200, 500]:  # TODO revert  /remove
+            self.Z = numpy.ones(self.Z.shape)
+        else:
+            self.Z = numpy.zeros(self.Z.shape)
 
         self.calculate_entropies()
 
@@ -671,7 +675,8 @@ class SEMLiquid(object):
             self.dW[self.untrained,:] = 0
 
             # apply the weight update
-            self.W += self.etas * self.W_mod * self.dW
+            self.W += self.etas * self.W_mod * self.dW  # TODO enable this back!
+            # self.W[:, 1:] = -self.W_mod[:, 1:]   # TODO remove this line
 
             # update adaptive learning rate
             if self.use_variance_tracking:
@@ -901,9 +906,12 @@ class SEMLiquid(object):
             Idict2[key] = numpy.asarray(Idict2[key])
 
         recorder.stop_recording()
-        inp_weights = recorder.read(num_weights_to_rec)
+        # inp_weights = recorder.read(num_weights_to_rec)
+        inp_weights = recorder.continuous_inp_rec[:, :num_weights_to_rec]
+
         if self.use_recurrent_connections:
-            rec_weights = recorder.read(num_weights_to_rec)
+            # rec_weights = recorder.read(num_weights_to_rec)
+            rec_weights = recorder.continuous_rec_rec[:, :num_weights_to_rec]
         if self.use_priors:
             priors = recorder.read(num_weights_to_rec)
         if self.nReadouts > 0:
@@ -1808,10 +1816,29 @@ def sem_liquid_pattern4A(seed=None, *p):
     # strain = 10
     stest_train = 3
     stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=1, rin=5,
-        tPattern=[300e-3]*1, use_priors=False, plot_order_states=False, frac_tau_DS=10, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=True,# eta=1e-4,
-        use_entropy_regularization=False, pattern_sequences=[[0],[0]], test_pattern_sequences=[[0],[0]], seed=seed, size=(5,4), pConn=1.0,
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 800e-3], size_lims=[2,10], test_time_warp_range=(0.5,2.))
+    params = SEMLiquidParams(task='pattern',
+                             nInputs=100,
+                             pattern_mode='random_switching',
+                             sprob=0.5,
+                             nPatterns=1,
+                             rin=5,
+                             tPattern=[300e-3]*1,
+                             use_priors=False,
+                             plot_order_states=False,
+                             frac_tau_DS=10,
+                             use_dynamic_synapses=True,
+                             rNoise=2,
+                             use_variance_tracking=True,# eta=1e-4,
+                             use_entropy_regularization=False,
+                             pattern_sequences=[[0],[0]],
+                             test_pattern_sequences=[[0],[0]],
+                             seed=seed,
+                             size=(5,4),
+                             pConn=1.0,
+                             tNoiseRange=[300e-3,500e-3],
+                             test_tNoiseRange=[300e-3, 800e-3],
+                             size_lims=[2,10],
+                             test_time_warp_range=(0.5,2.))
     liquid = SEMLiquid(params)
     liquid.order_states2 = False
     liquid.sub_neurons = 4

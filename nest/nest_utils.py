@@ -55,7 +55,11 @@ def randomize_outgoing_connections(nc):
 def run_simulation(network, inpgen, t):
     """Pre-generates input patterns for duration of simulation and then runs the simulation"""
     inpgen.generate_input(t, t_origin=nest.biological_time)
-    nest.Simulate(t)
+    # nest.Simulate(t)
+    for t_ in range(int(t)):
+        inp_conn_w = nest.GetConnections(synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec").weight
+        network.weight_recorder.append(inp_conn_w)
+        nest.Simulate(1.)
 
 
 def measure_network(network, id_list: list = None, node_collection=None, readout_size: int = None,

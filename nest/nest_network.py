@@ -44,7 +44,10 @@ class WTACircuit:
 
     def get_size(self):
         """Returns the size of the NodeCollection nc"""
-        return len(self.nc.get('global_id'))
+        try:
+            return len(self.nc.get('global_id'))
+        except TypeError:
+            return 1
 
     def form_WTA(self):
         """Connects all neurons within the same WTA via rate_connection_instantaneous connections"""
@@ -143,6 +146,7 @@ class InputGenerator(object):
             pattern = []
             for j in range(self.n):
                 pattern.append(generate_poisson_spiketrain(self.t_pattern[i], self.r_input))
+            pattern = [[146.], [255.], [646.], [769.]]  # TODO remove this
             self.pattern_list.append(pattern)
 
     def generate_input(self, duration, t_origin=0.0, force_refresh_patterns=False):
@@ -203,7 +207,8 @@ class InputGenerator(object):
         for i in range(self.n):
             # past_spikes = self.spike_generators[i].get('spike_times')
             # new_spiketrain = past_spikes.tolist().append(spiketrain_list[i])
-            self.spike_generators[i].set({'spike_times': spiketrain_list[i]})
+            # self.spike_generators[i].set({'spike_times': spiketrain_list[i]})  # TODO revert this
+            self.spike_generators[i].set({'spike_times': [146., 255., 646., 769.]})
 
     def get_next_pattern_id(self) -> int:
         # if sequence is not over just progress to next id in sequence
@@ -289,7 +294,10 @@ class Network(object):
 
         id_list = []
         for circuit in self.circuits[s]:
-            id_list += circuit.get_node_collection().get()['global_id']
+            try:
+                id_list += circuit.get_node_collection().get()['global_id']
+            except TypeError:
+                id_list += [circuit.get_node_collection().get()['global_id']]
         return nest.NodeCollection(id_list)
 
     def get_pos_by_id(self, node_id: int) -> Optional[tuple]:
@@ -319,7 +327,7 @@ class Network(object):
                      'p': 1.0,
                      'allow_autapses': False}
         syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
-                    'delay': 3.
+                    'delay': 1.
                     }
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
@@ -455,7 +463,6 @@ if __name__ == '__main__':
         task = ""
 
     # Setup nest
-    nest.resolution = 1.
     if task == 'regen_models':
         generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL, regen=True, target=NEURON_MODEL + "_with_" + SYNAPSE_MODEL)
         exit()
@@ -463,7 +470,9 @@ if __name__ == '__main__':
         generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL, regen=regen)
     print(_SYNAPSE_MODEL_NAME, " installed: ", _SYNAPSE_MODEL_NAME in nest.synapse_models)
     print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
-    nest.print_time = True
+    #nest.print_time = True
+    nest.resolution = 1.
+    nest.SetKernelStatus({'resolution': 1.})
 
     if 0:
         # Initialize weight recorder
