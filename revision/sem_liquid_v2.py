@@ -69,33 +69,13 @@ class SEMLiquidParams(object):
         self.use_recurrent_connections = kwds.get('use_recurrent_connections', True)
         # adapt the input connections?
         self.train_inputs = kwds.get('train_inputs', True)
-        # use recurrent connections within a single WTA circuit?
-        self.use_self_recurrent_connections = kwds.get('use_self_recurrent_connections', False)
         # use dynamic synapses for recurrent connections?
         self.use_dynamic_synapses = kwds.get('use_dynamic_synapses', True)
-        # use dynamic synapses for input connections?
-        self.use_dynamic_input_synapses = kwds.get('use_dynamic_input_synapses', False)
-        # use dynamic synapses for readout connections? (only for WTA readouts)
-        self.use_dynamic_readout_synapses = kwds.get('use_dynamic_readout_synapses', False)
         # use individual synapses for each connection, or use a single EPSP instance for each
-        # (recurrent or external) input? (not fully implemented yet)
-        self.use_multiple_synapses = kwds.get('use_multiple_synapses', False)
         # time constants of dynamical synapses are divided by this number
         self.frac_tau_DS = kwds.get('frac_tau_DS', 10)
         # initalize weights randomly (or zero otherwise?)
         self.random_initial_weights = kwds.get('random_initial_weights', False)
-        # use a correction within the learning rule that allows inputs of non-constant rate
-        self.use_poisson_correction = kwds.get('use_poisson_correction', False)
-        self.poisson_correction_steps = kwds.get('poisson_correction_steps', 1e4)
-        # apply weight regularization method ("prior")
-        self.use_weight_regularization = kwds.get('use_weight_regularization', False)
-        self.prior = kwds.get('prior','lognormal')
-        if self.prior=='lognormal':
-            self.w_mu = kwds.get('w_mu', 0.0)
-            self.w_sigma = kwds.get('w_sigma', 1.0)
-        elif self.prior=='normal':
-            self.w_mu = kwds.get('w_mu', -1.5)
-            self.w_sigma = kwds.get('w_sigma', 1.0)
 
         # number of neurons for the WTA readout (if any)
         self.nReadouts = kwds.get('nReadouts', 0)
@@ -111,7 +91,7 @@ class SEMLiquidParams(object):
         # number of time steps for recording stuff
         self.dt_rec = kwds.get('dt_rec', 100)
         # plot network response ordered by the mean activation time of neurons?
-        self.plot_order_states = kwds.get('plot_order_states', False)
+        self.plot_order_states = kwds.get('plot_order_states', True)
         self.swap_order = kwds.get('swap_order', False)
 
         # 'multi', 'pattern', or 'speech'
@@ -154,20 +134,6 @@ class SEMLiquidParams(object):
         self.sprob = kwds.get('sprob', [0.8, 0.2])
         # probability with which noise is presented after each pattern sequence
         self.nprob = kwds.get('nprob', 1.0)
-
-        # additional parameters for speech task:
-
-        # digits used
-        self.digits = kwds.get('digits', None)
-        # speaker used
-        self.speakers = kwds.get('speakers', None)
-        #self.speaker = 2
-        #self.speakers = [self.speaker]
-        #self.speakers = [1,2]
-        # utterances used
-        self.utterances = (numpy.arange(10)+1).tolist() #numpy.random.permutation(10)[:1]+1
-        # (for reversed digits, not used now)
-        self.rev_digits = kwds.get('rev_digits', [])
 
         # for MULTI task:
 
@@ -280,19 +246,21 @@ class SEMLiquid(object):
         self.u_inp_trace = []
         self.epsp_trace = []
         self.epsp2_trace = []
+        # trace of input and recurrent weight during simulation
+        self.w_inp_trace = []
+        self.w_rec_trace = []
         # temporary variables for storing postsynaptic epsp traces
-        if self.use_multiple_synapses:
-            self.epsp = numpy.zeros((self.tsize+self.nReadouts, self.nInputs+self.tsize))
-            self.epsp2 = numpy.zeros((self.tsize+self.nReadouts, self.nInputs+self.tsize))
-        else:
-            self.epsp = numpy.zeros(self.nInputs+self.tsize)
-            self.epsp2 = numpy.zeros(self.nInputs+self.tsize)
+        self.epsp = numpy.zeros(self.nInputs+self.tsize)
+        self.epsp2 = numpy.zeros(self.nInputs+self.tsize)
+        # make nInputs accessible in SEMLiquid functions
+        self.nInputs = self.nInputs
+
         # vector for output spikes
         self.Z = numpy.zeros(self.tsize+self.nReadouts)
         # vector for output spike probability
         self.Zp = numpy.ones(self.tsize+self.nReadouts)
         # firing rate of the network
-        self.r = self.rmax*self.Zp/numpy.sum(self.Zp)
+        self.r = self.rmax*self.Zp/numpy.sum(self.Zp)  # Zp = e^{u(t)} (initialize firing rates uniformly)
         # state of the network (low-pass filtered network spike trains)
         self.state = numpy.zeros(self.nInputs+self.tsize)
         # weights
@@ -412,31 +380,15 @@ class SEMLiquid(object):
             self.F_mean = 0.05
             self.D_mean /= self.frac_tau_DS
             self.F_mean /= self.frac_tau_DS
-            if self.use_multiple_synapses:
-                self.U = self.U_mean + self.U_mean/2*numpy.random.randn(self.tsize+self.nReadouts, self.nInputs+self.tsize)
-                self.D = self.D_mean + self.D_mean/2*numpy.random.randn(self.tsize+self.nReadouts, self.nInputs+self.tsize)
-                self.F = self.F_mean + self.F_mean/2*numpy.random.randn(self.tsize+self.nReadouts, self.nInputs+self.tsize)
-                if not self.use_dynamic_input_synapses:
-                    self.U[:,:self.nInputs] = 1.0
-                    self.D[:,:self.nInputs] = 0.0
-                    self.F[:,:self.nInputs] = 0.0
-                if not self.use_dynamic_readout_synapses:
-                    self.U[self.tsize:,:] = 1.0
-                    self.D[self.tsize:,:] = 0.0
-                    self.F[self.tsize:,:] = 0.0
-                self.rdyn = numpy.ones((self.tsize+self.nReadouts, self.nInputs+self.tsize))
-            else:
-                self.U = self.U_mean + self.U_mean/2*numpy.random.randn(self.nInputs+self.tsize)
-                self.D = self.D_mean + self.D_mean/2*numpy.random.randn(self.nInputs+self.tsize)
-                self.F = self.F_mean + self.F_mean/2*numpy.random.randn(self.nInputs+self.tsize)
-                #self.U = numpy.repeat(self.U, self.tsize+self.nReadouts, axis=0)
-                #self.D = numpy.repeat(self.D, self.tsize+self.nReadouts, axis=0)
-                #self.F = numpy.repeat(self.F, self.tsize+self.nReadouts, axis=0)
-                if not self.use_dynamic_input_synapses:
-                    self.U[:self.nInputs] = 1.0
-                    self.D[:self.nInputs] = 0.0
-                    self.F[:self.nInputs] = 0.0
-                self.rdyn = numpy.ones(self.nInputs+self.tsize)
+            self.U = self.U_mean + self.U_mean/2*numpy.random.randn(self.nInputs+self.tsize) * 0  # TODO remove *0
+            self.D = self.D_mean + self.D_mean/2*numpy.random.randn(self.nInputs+self.tsize) * 0
+            self.F = self.F_mean + self.F_mean/2*numpy.random.randn(self.nInputs+self.tsize) * 0
+            #if not self.use_dynamic_input_synapses:
+            self.U[:self.nInputs] = 1.0  # TODO check the meaning of this: is STP disabled on input synapses?
+            self.D[:self.nInputs] = 0.0
+            self.F[:self.nInputs] = 0.0
+            self.rdyn = numpy.ones(self.nInputs+self.tsize)
+
             self.U = numpy.maximum(self.U, 0.0)
             self.D = numpy.maximum(self.D, self.dt)
             self.F = numpy.maximum(self.F, self.dt)
@@ -483,7 +435,8 @@ class SEMLiquid(object):
             printf("Generating %d recurrent connections...  0%%" % (self.nConn))
             eps = 1.0
             count = 0
-            while count<self.nConn:
+            # while count<self.nConn and False: # TODO rm "and False"
+            while count<self.nConn: # TODO rm "and False"
                 d = numpy.random.exponential(scale=1.0/self.lam)
                 I,J = numpy.where((self.distances<=d+eps) & (self.distances>d-eps))
                 if len(I)>0:
@@ -527,13 +480,6 @@ class SEMLiquid(object):
                 if numpy.random.rand()<=(1.0-self.pConn):
                     self.W_map[:self.tsize,self.nInputs:][i,j] = 0
                     #print "remove: %d/%d" % (i,self.nInputs+j)
-
-        if self.use_self_recurrent_connections:
-            for i in range(npos):
-                from_start, from_end = tuple(self.idmap[self.ind2pos(i)][[0,-1]])
-                to_start, to_end = tuple(self.idmap[self.ind2pos(i)][[0,-1]])
-                self.W_map[to_start:to_end+1, self.nInputs+from_start:self.nInputs+from_end+1] = 1
-                #print "connect: %d-%d/%d-%d" % (to_start,to_end,self.nInputs+from_start,self.nInputs+from_end)
 
         trained = numpy.zeros(self.tsize).astype(bool)
         trained_sems = numpy.where(numpy.random.rand(self.npos)<=self.train_fraction)[0]
@@ -631,13 +577,37 @@ class SEMLiquid(object):
             self.rdyn = numpy.ones(self.rdyn.shape)
             self.isi = numpy.zeros(self.nInputs+self.tsize)
 
+    # calculate input and recurrent entropy
+    def calculate_entropies(self):
+        u_inp = numpy.dot(self.W[:self.tsize,1:1+self.nInputs]* \
+        self.W_map[:self.tsize,:self.nInputs]*self.rec_mod[:self.tsize,1:1+self.nInputs], self.Y[:self.nInputs])
+
+        expU_inp = numpy.exp(u_inp - numpy.max(u_inp))
+        self.Zp_inp = expU_inp / numpy.dot(self.groups[:self.tsize,:self.tsize], expU_inp)
+        u_rec = numpy.dot(self.W[:self.tsize,1+self.nInputs:]* \
+        self.W_map[:self.tsize,self.nInputs:]*self.rec_mod[:self.tsize,1+self.nInputs:], self.Y[self.nInputs:])
+
+        expU_rec = numpy.exp(u_rec - numpy.max(u_rec))
+        self.Zp_rec = expU_rec / numpy.dot(self.groups[:self.tsize,:self.tsize], expU_rec)
+        self.H_inp = entropy(self.Zp_inp)
+        self.H_rec = entropy(self.Zp_rec)
+        #print self.H_inp, self.H_rec, self.Zp_inp.shape, self.Zp_rec.shape
+
     # this is the main method that advances the simulation by one time step
     # x is the input, t is the optional target vector for the readout WTAs
     def process_input(self, x, t=None):
-        self.u_trace += self.u[0]  #
+        print("")
+        print("Weights: ", self.W[:, 1:])
+        if 1 in x: #x == [1]*self.nInputs:
+            print "Breakpoint: Spike received at time t=", self.step
+        self.u_trace.append(self.u)
         self.u_inp_trace.append(x)
+        self.w_inp_trace = numpy.append(self.w_inp_trace, numpy.array(self.W[0, 1:self.nInputs+1]), axis=0)
+        self.w_rec_trace = numpy.append(self.w_rec_trace, numpy.array(self.W[0, 1+self.nInputs:]), axis=0)
+
         self.epsp_trace.append(self.epsp)
         self.epsp2_trace.append(self.epsp2)
+
         if t is not None:
             assert(len(t) == self.nReadouts)
         else:
@@ -647,15 +617,10 @@ class SEMLiquid(object):
         self.Y = (self.epsp - self.epsp2)/self.epsp_scale
         # calculate membrane potential (priors + weighted epsps)
         self.rec_mod = self.inp_W + self.rdt_W + self.rho*self.rec_W
-        if self.use_multiple_synapses:
-            self.u = self.W[:,0] + numpy.sum(self.W[:,1:]*self.W_map*self.rec_mod[:,1:]*self.Y, axis=1)
-        else:
-            self.u = self.W[:,0] + numpy.dot(self.W[:,1:]*self.W_map*self.rec_mod[:,1:], self.Y)
-        # apply Poisson correction if enabled
-        if self.use_poisson_correction:
-            self.poiss_corr = numpy.sum(numpy.exp(self.W[:,1:]*self.W_map*self.rec_mod[:,1:]), axis=1)
-            self.poiss_corr *= ((float)(numpy.min(self.step,self.poisson_correction_steps)))/self.poisson_correction_steps
-            self.u -= self.poiss_corr
+        self.u = self.W[:,0] + numpy.dot(self.W[:,1:]*self.W_map*self.rec_mod[:,1:], self.Y)
+        #if self.u != [0.]:
+        #    print "Breakpoint: self.u != 0."
+
         # for supervised WTA readout learning
         if t.sum()>1:
             self.u[self.tsize:][numpy.invert(t)] = -numpy.infty
@@ -677,6 +642,8 @@ class SEMLiquid(object):
 
         # update EPSPs
         y = numpy.concatenate((x,self.Z[:self.tsize]))
+        if any(y) or any(x):
+            print "Breakpoint"
         #y = numpy.concatenate((x,self.Zp[:self.tsize]))
         # calculate postsynaptic traces of presynaptic spikes
         #print y.shape, self.epsp.shape, self.rdyn.shape, self.udyn.shape
@@ -687,6 +654,8 @@ class SEMLiquid(object):
 
         # calculate and apply the weight update
         if self.do_train:
+            #if self.use_entropy_regularization:
+            #    self.rho -= self.eta_rho*(self.H_inp - self.H_rec)
             self.W_mod = self.beta*self.inp_W + self.rdt_W + self.alpha*self.rec_W + self.pr_W
             if self.use_variance_tracking:
                 self.etas = self.eta*(self.Q-self.S**2)/(numpy.exp(-self.S)+1)
@@ -695,20 +664,6 @@ class SEMLiquid(object):
             P = numpy.exp(self.W)
             truncP = numpy.maximum(P,self.etas)
             self.dW[:,1:] = (self.Z * (self.Y - P[:,1:]).T).T / truncP[:,1:]
-            if self.use_weight_regularization:
-                if self.prior=='lognormal':
-                    W = numpy.maximum(eps,-self.W)
-                    tmp = (numpy.log(W) - self.w_mu)/(self.w_sigma**2)
-                    B1 = -1.0/W * (1.0 + tmp)
-                    B2 = -1.0/(W**2) * (1.0 - 1.0/(self.w_sigma**2) + tmp)
-                    B1 = numpy.minimum(B1,self.etas); B1 = numpy.maximum(B1,-self.etas);
-                    B2 = numpy.minimum(B2,self.etas); B2 = numpy.maximum(B2,-self.etas);
-                    #truncP2 = numpy.maximum(P + B2,self.etas)
-                elif self.prior=='normal':
-                    B1 = (self.W - self.w_mu)/(self.w_sigma**2)
-                    B2 = 1.0/(self.w_sigma**2)*numpy.ones(self.W.shape)
-                dWrec = (self.Z * (self.Y - P[:,1:] - B1[:,1:]).T).T / (truncP[:,1:] + B2[:,1:])
-                self.dW[:,1:][numpy.where(self.rec_W[:,1:])] = dWrec[numpy.where(self.rec_W[:,1:])]
             if self.use_priors:
                 self.dW[:,0] = (self.Z - P[:,0]) / truncP[:,0]
             if not self.use_inputs or not self.train_inputs:
@@ -733,20 +688,20 @@ class SEMLiquid(object):
 
         # simulate dynamic synapses
         if self.use_dynamic_synapses:
-            if self.use_multiple_synapses:
-                r = self.rdyn[:,y==1]; u = self.udyn[:,y==1]; isi = self.isi[y==1]
-                D = self.D[:,y==1]; U = self.U[:,y==1]; F = self.F[:,y==1]
-                self.rdyn[:,y==1] = 1 + (r - r*u - 1)*numpy.exp(-isi/(D+eps))
-                self.udyn[:,y==1] = U + u*(1-U)*numpy.exp(-isi/(F+eps))
-                self.isi += self.dt
-                self.isi[y==1] = 0
-            else:
-                r = self.rdyn[y==1]; u = self.udyn[y==1]; isi = self.isi[y==1]
-                D = self.D[y==1]; U = self.U[y==1]; F = self.F[y==1]
-                self.rdyn[y==1] = 1 + (r - r*u - 1)*numpy.exp(-isi/(D+eps))
-                self.udyn[y==1] = U + u*(1-U)*numpy.exp(-isi/(F+eps))
-                self.isi += self.dt
-                self.isi[y==1] = 0
+            #if self.use_multiple_synapses:
+            #    r = self.rdyn[:,y==1]; u = self.udyn[:,y==1]; isi = self.isi[y==1]
+            #    D = self.D[:,y==1]; U = self.U[:,y==1]; F = self.F[:,y==1]
+            #    self.rdyn[:,y==1] = 1 + (r - r*u - 1)*numpy.exp(-isi/(D+eps))
+            #    self.udyn[:,y==1] = U + u*(1-U)*numpy.exp(-isi/(F+eps))
+            #    self.isi += self.dt
+            #    self.isi[y==1] = 0
+            #else:
+            r = self.rdyn[y==1]; u = self.udyn[y==1]; isi = self.isi[y==1]
+            D = self.D[y==1]; U = self.U[y==1]; F = self.F[y==1]
+            self.rdyn[y==1] = 1 + (r - r*u - 1)*numpy.exp(-isi/(D+eps))
+            self.udyn[y==1] = U + u*(1-U)*numpy.exp(-isi/(F+eps))
+            self.isi += self.dt
+            self.isi[y==1] = 0
 
     def plotInfo(self, ax, fs=20, dstr=None):
         if dstr is None:
@@ -829,7 +784,7 @@ class SEMLiquid(object):
             spk_rec_times.append(nsteps-self.nstepsrec)
         rec_start = 0
 
-        num_weights_to_rec = 50
+        num_weights_to_rec = self.tsize  # 50
         inp_weight_ids = numpy.where(self.W_map[:self.tsize,:self.nInputs].flatten())[0]
         inp_weights_to_rec = numpy.random.permutation(inp_weight_ids)[:num_weights_to_rec]
         num_fields_to_rec = num_weights_to_rec
@@ -854,7 +809,7 @@ class SEMLiquid(object):
         for step in range(nsteps):
             #print numpy.random.rand()
             self.step += 1
-            self.update_parameters_train(step, nsteps)
+            self.update_parameters_train(step, nsteps)  # does nothing (pass)
             t = None
             if not self.use_inputs:
                 x = numpy.zeros(self.nInputs, dtype='int')
@@ -871,15 +826,23 @@ class SEMLiquid(object):
                 time = timeit.default_timer() - start_time
                 printf('\rsimulating step %d/%d (%d%%) ETA %s...' % ((step+1)/self.dt_out,
                     nsteps/self.dt_out, ratio*100, format_time((1.0/ratio - 1)*time)))
-            if (step+1)%self.dt_rec==0:
-                recorder.record(self.W[:self.tsize,1:1+self.nInputs].flatten()[inp_weights_to_rec])
-                if self.use_recurrent_connections:
-                    recorder.record(self.W[:self.tsize,1+self.nInputs:].flatten()[rec_weights_to_rec])
-                if self.use_priors:
-                    recorder.record(self.W[:self.tsize,0].flatten()[prior_to_rec])
-                if self.nReadouts > 0:
-                    recorder.record(self.W[self.tsize:,1+self.nInputs:].flatten()[rdt_weights_to_rec])
-                recorder.stop_step()
+            #if (step+1)%self.dt_rec==0:
+            recorder.record(self.W[:self.tsize,1:1+self.nInputs].flatten()[inp_weights_to_rec])
+            # TODO manual recording of input weights here
+            recorder.continuous_inp_rec[step, :num_weights_to_rec] = self.W[:self.tsize,1:1+self.nInputs].flatten()
+
+            if self.use_recurrent_connections:
+                recorder.record(self.W[:self.tsize,1+self.nInputs:].flatten()[rec_weights_to_rec])
+                # TODO manual recording of recurrent weights here
+                recorder.continuous_rec_rec[step, :num_weights_to_rec] = \
+                    self.W[:self.tsize,1+self.nInputs:].flatten()[rec_weights_to_rec]
+
+            if self.use_priors:
+                recorder.record(self.W[:self.tsize,0].flatten()[prior_to_rec])
+            if self.nReadouts > 0:
+                recorder.record(self.W[self.tsize:,1+self.nInputs:].flatten()[rdt_weights_to_rec])
+            recorder.stop_step()
+
             if step in spk_rec_times:
                 if self.task=='multi':
                     self.reset_epsp()
@@ -1030,21 +993,42 @@ class SEMLiquid(object):
                 pylab.xlabel('time [s]')
                 self.save_figure(self.outputdir+'%s_rdt_weights.%s' % (savestrprefix,self.ext))
         # Plot membrane potentials during simulation
-        print self.u_trace
+        # print self.u_trace
+
         plt_list0 = []
         plt_list1 = []
         plt_list2 = []
-        print(len(self.u_inp_trace[0]))
-        for i in range(len(self.epsp_trace)):
+        #print(len(self.u_trace[0]))
+        for i in range(len(self.u_trace)):
             #plt_list0.append(self.epsp_trace[i][0] * self.u_inp_trace[i][0])
             #plt_list1.append(self.epsp_trace[i][10] * self.u_inp_trace[i][10])
             #plt_list2.append(self.epsp_trace[i][20] * self.u_inp_trace[i][20])
-            plt_list0.append(self.u_inp_trace[i][0])
-            plt_list1.append(self.u_inp_trace[i][10])
-            plt_list2.append(self.u_inp_trace[i][20])
-        plt.plot(plt_list0, color="r")
-        plt.plot(plt_list1, color="g")
-        plt.plot(plt_list2, color="b")
+            plt_list0.append(self.u_trace[i])  # Voltage trace
+            plt_list1.append(self.u_inp_trace[i])  # Input trace
+
+        fig = plt.figure(figsize=(6, 7))
+        ax = fig.add_subplot(411)
+        plt_list0 = numpy.array(plt_list0)
+        # ax.plot(-plt_list0, color="r")
+        ax.plot(-plt_list0)
+        ax.set_title('Voltage trace')
+
+        ax = fig.add_subplot(412)
+        ax.plot(plt_list1, color="g", label='input trace')
+        ax.set_title('Input trace')
+
+        ax = fig.add_subplot(413)
+        for i in range(rec_weights.shape[1]):
+            ax.plot(ts, rec_weights[:, i], c=co[i % len(co)])
+        ax.set_title('Recurrent weights')
+
+        ax = fig.add_subplot(414)
+        for i in range(1): # range(inp_weights.shape[1]):
+            pylab.plot(ts, inp_weights[:, i], c=co[i % len(co)])
+        pylab.title('Input weights')
+
+        fig.tight_layout()
+        fig.savefig('voltage_trace.pdf')
         plt.show()
 
     def trainPCA(self, states):
@@ -1612,63 +1596,11 @@ class SEMLiquid(object):
         pylab.figure()
         pylab.hist(weights, bins=numpy.arange(-5,0,0.1))
         pylab.title("histogram of input weights")
+        pylab.title("histogram of input weights")
         self.save_figure(self.outputdir+'%s_inpwhist.%s' % (savestrprefix,self.ext))
+        pylab.show()
 
-def sem_liquid_speech(seed=None, *p):
-    strain = 10
-    stest_train = 10
-    stest = 3
-    params = SEMLiquidParams('speech', nInputs=200, pattern_mode='random_switching', sprob=0.5,
-        tNoiseRange=[100e-3, 500e-3], test_tNoiseRange=[100e-3, 300e-3], rin=5, rNoise=2, nReadouts=4,
-        digits=[1,2], speakers=[2], use_priors=False, size=(10,5), size_lims=[2,10], seed=seed,
-        frac_tau_DS=10, use_dynamic_synapses=True, use_entropy_regularization=False,
-        time_warp_range=(3.,3.), test_time_warp_range=(3.,3.))
-    liquid = SEMLiquid(params)
-    liquid.isppt = False
-    liquid.ext = 'pdf'
-    num_train_periods = 10
-    num_test_periods = 1
-    test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain)
 
-    for itest in range(num_train_periods):
-        liquid.simulate(strain, titlestr="training phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
-        states = []
-        ids = []
-        test_titlestr = "response to unseen test utterances after %ds training" % ((itest+1)*strain)
-        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-            savestrprefix="sem_liquid_test%d_train_inp"%(itest+1), plot_readout_spikes=False, train_readouts=True, do_plot=False)
-        X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(4*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-        X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-            savestrprefix="sem_liquid_test%d_inp"%(4*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        #states.append(X)
-        #ids.append(I)
-
-        liquid.test_inpgen.inpgen.noise_period=(100,200)
-        for itest_comp in range(num_test_periods):
-            X,I,perf = liquid.test(stest, 0, titlestr=test_titlestr,
-                savestrprefix="sem_liquid_test%d_inpmod1"%(itest_comp+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.test_inpgen.inpgen.noise_period=None
-        liquid.test_inpgen.inpgen.mixed=True
-        for itest_comp in range(num_test_periods):
-            X,I,perf = liquid.test(stest, 0, titlestr=test_titlestr,
-                savestrprefix="sem_liquid_test%d_inpmod2"%(itest_comp+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-        liquid.test_inpgen.inpgen.mixed=False
-    #states = numpy.concatenate(states)
-    #ids = numpy.concatenate(ids)
-    #liquid.trainPCA(states)
-    #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    #liquid.plot_weight_distribution()
-    #liquid.plotPerformance(test_times, savestrprefix="sem_liquid_test")
-    if liquid.ext=='pdf' and len(liquid.figurelist)>0:
-        liquid.concatenate_pdf(delete=True)
-    if len(liquid.figurelist)>0:
-        pylab.close('all')
-    pylab.close('all')
-    return liquid, test_times
 
 def sem_liquid_pattern2(seed=None, *p):
     strain = 5
@@ -1712,14 +1644,36 @@ def sem_liquid_pattern2(seed=None, *p):
 
 # returns liquid computing model and test times for a given seed (seed) and a number of parameters (*p)
 def sem_liquid_pattern1(seed=None, *p):
-    strain = 5  # 100  # training set length (seconds)
+    strain = 1  # 100  # training set length (seconds)
     # strain = 10
     stest_train = 3
     stest = 3
-    params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=1, rin=5,
-        tPattern=[300e-3]*1, use_priors=False, plot_order_states=False, frac_tau_DS=10, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=True,# eta=1e-4,
-        use_entropy_regularization=False, pattern_sequences=[[0],[0]], test_pattern_sequences=[[0],[0]], seed=seed, size=(10,5), pConn=1.0,
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 800e-3], size_lims=[2,10], test_time_warp_range=(0.5,2.))
+    params = SEMLiquidParams(task='pattern',
+                             nInputs=1,
+                             pattern_mode='random_switching',
+                             sprob=0.5,
+                             nPatterns=1,
+                             rin=5,
+                             tPattern=[300e-3]*1,
+                             use_priors=False,
+                             plot_order_states=False,
+                             frac_tau_DS=10,
+                             use_dynamic_synapses=True,
+                             rNoise=0,
+                             use_variance_tracking=False,# eta=1e-4,
+                             pattern_sequences=[[0],[0]],
+                             test_pattern_sequences=[[0],[0]],
+                             seed=seed,
+                             size=(1,2),
+                             pConn=1.0,
+                             tNoiseRange=[300e-3,500e-3],
+                             test_tNoiseRange=[300e-3, 800e-3],
+                             size_lims=[1,1],
+                             test_time_warp_range=(0.5,2.),
+        nstepsrec=1000, # number of steps the recording lasts for
+        dt_rec=1,  # recording rate/Abtastrate of recorder
+        plot_weights=False,
+    )
     liquid = SEMLiquid(params)
     liquid.order_states2 = False
     liquid.sub_neurons = 4
@@ -1727,26 +1681,29 @@ def sem_liquid_pattern1(seed=None, *p):
     liquid.ext = 'pdf'
     num_train_periods = 1
     num_test_periods = 10
-    num_trial_periods = 100
+    num_trial_periods = 1  # 100
     test_times = numpy.arange(0,num_train_periods*strain+strain/2.0,strain) # aka test_times = [0]
 
     itest = 0
-    test_titlestr = "response to patterns before training"
-    liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    #test_titlestr = "response to patterns before training"
+    #liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
+    #X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
+    #    savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    #X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
+    #    savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
     liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
 
     for itest in range(1,num_train_periods+1):
         liquid.simulate(strain, titlestr="/simulating phase #%d" %(itest+1),
             savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
+        #liquid.plot_weight_distribution()
+
         states = []
         ids = []
         test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
         X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
             savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
+        exit()
     for itest in range(1,num_test_periods):
         X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
             savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
@@ -1765,7 +1722,7 @@ def sem_liquid_pattern1(seed=None, *p):
     #ids = numpy.concatenate(ids)
     #liquid.trainPCA(states)
     #liquid.plotPCA(states,ids, savestrprefix="sem_liquid_test")
-    #liquid.plot_weight_distribution()
+    liquid.plot_weight_distribution()
     if liquid.ext=='pdf':
         liquid.concatenate_pdf(delete=True)
     #pylab.show()
@@ -1838,6 +1795,12 @@ def sem_liquid_pattern12(seed=None, *p):
         pylab.close('all')
     #pylab.close('all')
     return liquid, test_times
+
+def stdp_window(seed=None, *p):
+    pass
+    # TODO: 1) Set pre_spike_time fixed to 100
+    #  2) iterate post_spike_time from 25 to 175
+    #  3) run_network for each combination of pre_spike_time-post_spike_time
 
 # newly created for replicating figure 4A
 def sem_liquid_pattern4A(seed=None, *p):
@@ -2005,7 +1968,7 @@ def sem_liquid_multi(seed=None):
     stest_train = 50
     stest = 3
     params = SEMLiquidParams(task='multi', nInputs=4, use_priors=False, train_fraction=0.0, size=(5,5),
-        size_lims=[2,25], in_rate_lims=(10,40), nInputGroups=2, seed=seed, use_multiple_synapses=False,
+        size_lims=[2,25], in_rate_lims=(10,40), nInputGroups=2, seed=seed,
         use_dynamic_synapses=True, tau=20e-3,
         tau_multi=20e-3, tau_multiple=5, pConn=0.0, frac_tau_DS=10)#,
         #nconn=10000, dt_rec_spk=stest*1000, nstepsrec=stest*1000)
@@ -2183,9 +2146,6 @@ if __name__ == '__main__':
     seeds = [None]*ntrials
     params = [None]*ntrials
     if (task=='speech'):
-        #seeds = [42172,56019,39247,59812]
-        #seeds = [56019]
-        #seeds = [54460]
         seeds = [2379]
         fcn = sem_liquid_speech
     elif (task=='multi'):
@@ -2198,23 +2158,17 @@ if __name__ == '__main__':
         fcn = sem_liquid_xor_pattern
         #params = numpy.linspace(0.0,1.0,ntrials)
     elif (task=='pattern1'):
-        #seeds = [63156]
         seeds = [13521]
         #seeds = [49856] orig
         fcn = sem_liquid_pattern1
     elif (task=='pattern12'):
-        #seeds = [63156]
-        #seeds = [13521]
         seeds = [49856]
         fcn = sem_liquid_pattern12
     elif (task=='pattern2'):
-        #seeds = [63082]
         seeds = [18657]
         fcn = sem_liquid_pattern2
     elif (task=='pattern4A'):
-        #seeds = [63156]
         seeds = [13521]
-        #seeds = [49856] orig
         fcn = sem_liquid_pattern4A
     elif (task=='fail'):
         fcn = sem_liquid_fail

@@ -3,8 +3,8 @@ import numpy
 
 class Recorder(object):
     def __init__(self, num_steps, num_fields):
-        self.num_fields = num_fields
-        self.num_steps = num_steps
+        self.num_fields = num_fields  # Dimension of one slice of recorded data
+        self.num_steps = num_steps  # Number of steps to record
         self.rec = numpy.zeros((num_steps,num_fields))
         self.idx = 0
         self.step = 0
