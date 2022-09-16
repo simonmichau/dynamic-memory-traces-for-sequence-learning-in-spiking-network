@@ -40,6 +40,7 @@ neuron iaf_psc_exp_wta:
   state:
     r integer = 0             # counts number of tick during the refractory period
     V_m mV = 0 mV             # Membrane potential
+    time_cnt integer = 0
   end
 
   equations:
