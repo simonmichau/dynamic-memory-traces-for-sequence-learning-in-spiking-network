@@ -52,7 +52,7 @@ def randomize_outgoing_connections(nc):
     conns.set(weight=random_weight_list)
 
 
-def run_simulation(inpgen, t):
+def run_simulation(network, inpgen, t):
     """Pre-generates input patterns for duration of simulation and then runs the simulation"""
     inpgen.generate_input(t, t_origin=nest.biological_time)
     nest.Simulate(t)
@@ -97,7 +97,7 @@ def measure_network(network, id_list: list = None, node_collection=None, readout
     if inpgen is None:
         nest.Simulate(t_sim)
     else:
-        run_simulation(inpgen, t_sim)
+        run_simulation(network, inpgen, t_sim)
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
     fig.set_figwidth(8)
@@ -106,14 +106,22 @@ def measure_network(network, id_list: list = None, node_collection=None, readout
     dmm = network.multimeter.get()
     Vms = dmm["events"]["V_m"]
     ts = dmm["events"]["times"]
-
+    #for sender in dmm["events"]["senders"]:
+    #    index = np.where(dmm["events"]["senders"] == sender)[0]
+    #    ax1.plot(ts[index], Vms[index])
     ax1.plot(ts, Vms)
+
     ax1.set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
     ax1.set_ylabel("Membrane potential (mV)")
+    # ax1.set_yscale('log')
 
     # SPIKE EVENTS
+    # TODO: create map between global_ids and their position in id_list, so if readout selection is randomly by
+    #  readout_size, `evs` can be altered in order not to create huge gaps
     dSD = network.spikerecorder.get("events")
     evs = dSD["senders"]
+    # print(evs)
+    # print(len(evs))
     ts = dSD["times"]
 
     ax2.plot(ts, evs, ".", color='orange')
@@ -161,8 +169,17 @@ def plot_weights(weight_recorder):
     events = weight_recorder.get('events')
     w_vec = events['weights']
     t_vec = events['times']
-    ax.set_xlim(0, np.amax(weight_recorder.get('events')['times']))
+    #ax.set_xlim(0, np.amax(weight_recorder.get('events')['times']))
     ax.plot(t_vec, w_vec)
+    # ax.set_yscale('log')
+    fig.show()
+
+def plot_w(weights):
+    fig, ax = plt.subplots()
+    weights = np.array(weights)
+    for j in range(weights.shape[1]):
+        ax.plot(weights[:, j])
+    # ax.set_yscale('log')
     fig.show()
 
 

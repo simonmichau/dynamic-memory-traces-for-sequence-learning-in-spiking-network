@@ -14,7 +14,8 @@ from pynestml.frontend.pynestml_frontend import generate_target, generate_nest_t
 
 
 nest.ResetKernel()
-nest.SetKernelStatus({"rng_seed": 5116})
+nest.SetKernelStatus({"rng_seed": 1337})
+np.random.seed(1337)
 
 
 class WTACircuit:
@@ -23,7 +24,7 @@ class WTACircuit:
         self.nc = nc
         self.pos = pos
         self.k = self.get_size()
-        self.form_WTA()
+        #self.form_WTA()
 
     def get_pos(self):
         """Returns the (x, y) position of the WTA circuit"""
@@ -71,7 +72,7 @@ class InputGenerator(object):
     """
     def __init__(self, target_network, **kwds):
         # Number of input channels
-        self.n = target_network.nInputs
+        self.n = target_network.n_inputs
         # Target network
         self.target_network = target_network
         # Poisson firing rate of the noise (in Hz)
@@ -87,7 +88,7 @@ class InputGenerator(object):
         # Switching probability for pattern picking
         self.p_switch = kwds.get('p_switch', 1.0)
         # Pattern durations
-        self.t_pattern = kwds.get('t_pattern', [300.0] * self.n_patterns)
+        self.t_pattern = kwds.get('t_pattern', [1000.0] * self.n_patterns)
         # Range from which the noise phase duration is randomly chosen from (in ms)
         self.t_noise_range = kwds.get('t_noise_range', [100.0, 500.0])
         # Dictionary of stored patterns
@@ -123,11 +124,11 @@ class InputGenerator(object):
             'allow_autapses': False,
         }
         syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
-                    'delay': 3.
+                    'delay': 1.
                     }
         nest.Connect(parrots, self.target_network.get_node_collections(), conn_dict, syn_dict)
         # Update connection weights to random values
-        randomize_outgoing_connections(parrots)
+        #randomize_outgoing_connections(parrots)
 
     def create_patterns(self) -> None:
         """Creates poisson patterns according to the InputGenerator's
@@ -164,13 +165,14 @@ class InputGenerator(object):
                          'allow_autapses': False,
                          'p': 1.0}
             syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
-                        'delay': 3.
+                        'delay': 1.
                         }
             nest.Connect(self.spike_generators, self.target_network.get_node_collections(), conn_dict,
                          syn_dict)
 
             # Randomize connection weights
-            randomize_outgoing_connections(self.spike_generators)
+            #randomize_outgoing_connections(self.spike_generators)
+            print(nest.GetConnections())
 
         # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
         t = 0
@@ -241,8 +243,8 @@ class Network(object):
     def __init__(self, **kwds):
         # FUNCTIONAL VARIABLES
         # Rise and decay time constant for EPSP (in ms)
-        self.tau_rise = kwds.get('tau_rise', 2)
-        self.tau_decay = kwds.get('tau_decay', 20)
+        self.tau_rise = kwds.get('tau_rise', 2)  # TODO: remove or make work again
+        self.tau_decay = kwds.get('tau_decay', 20)  # TODO: remove or make work again
         # Dimensions of the grid of WTA circuits
         self.grid_shape = kwds.get('grid_shape', (10, 5))
         self.n, self.m = self.grid_shape
@@ -250,17 +252,18 @@ class Network(object):
         self.k_min = kwds.get('k_min', 2)
         self.k_max = kwds.get('k_max', 10)
         # Number of external input channels
-        self.nInputs = kwds.get('nInputs', 50)
-        # parameter of exponential distance distribution
-        self.lam = kwds.get('lambda', 0.088)
+        self.n_inputs = kwds.get('n_inputs', 50)
+        # parameter lambda of exponential distance distribution
+        self.lam = kwds.get('lam', 0.088)
         # simulation time (in ms)
-        self.t_sim = kwds.get('t_sim', 2000.0)
+        self.t_sim = kwds.get('t_sim', 2000.0)  # TODO: remove or make work again
         # List containing all WTA circuits
         self.circuits = []
         # Create WTA circuits
         self.create_grid()
         # Establish interneuron connections
         self.form_connections()
+        self.weight_recorder = list()
 
         self.multimeter = None
         self.spikerecorder = None
@@ -462,29 +465,40 @@ if __name__ == '__main__':
     print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
     nest.print_time = True
 
-    # Initialize weight recorder
-    _SYNAPSE_MODEL_NAME, weight_recorder = init_weight_recorder(_SYNAPSE_MODEL_NAME)
+    if 0:
+        # Initialize weight recorder
+        _SYNAPSE_MODEL_NAME, weight_recorder = init_weight_recorder(_SYNAPSE_MODEL_NAME)
 
-    # Initialize Network
-    grid = Network()
-    # grid.visualize_circuits()
-    # grid.visualize_circuits_3d()
-    # grid.visualize_connections(grid.get_node_collections(1, 2))
-    # grid.get_node_collections(1, 5)
+        # Initialize Network
+        grid = Network()
 
-    # Initialize Input Generator
-    inp = InputGenerator(grid, n_patterns=3, pattern_sequences=[[0]], use_noise=True)
+        # Initialize Input Generator
+        inp = InputGenerator(grid, n_patterns=1, pattern_sequences=[[0]], use_noise=True, t_noise_range=[300.0, 500.0])
 
-    # measure_node_collection(grid.get_node_collections(1, 5), t_sim=100000.0)
-    # measure_node_collection(grid.get_node_collections()[0], t_sim=5000.0)
-    # measure_node_collection(grid.get_node_collections()[0], inp, t_sim=5000.0)
-    # measure_node_collection(grid.get_node_collections()[0:2], t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=50000.0)
-    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
-    measure_node_collection(grid.get_node_collections(0, 1), inp, t_sim=5000.0)
+        # Start measurements
+        id_list = measure_network(grid, inpgen=inp, t_sim=5000.0)
+        id_list = measure_network(grid, inpgen=inp, id_list=id_list, t_sim=5000.0)
+        plot_weights(weight_recorder)
+        exit()
+        measure_network(grid, inpgen=inp, id_list=id_list, t_sim=10000.0)
+        measure_network(grid, inpgen=inp, id_list=id_list, t_sim=5000.0)
+        measure_network(grid, inpgen=inp, id_list=id_list, t_sim=5000.0)
+        plot_weights(weight_recorder)
 
+        # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
 
-    # (TODO) version of visualize_connections where the percentage of connected neurons is given instead of total amount
-    # TODO: implement lateral inhibition
+    # TOY EXAMPLE
+    _SYNAPSE_MODEL_NAME, weight_recorder = init_weight_recorder(_SYNAPSE_MODEL_NAME)#
+
+    grid = Network(grid_shape=(1, 2), k_min=1, k_max=1, n_inputs=1)
+    inpgen = InputGenerator(grid, r_noise=2, r_input=5, n_patterns=1, pattern_sequences=[[0]], use_noise=False)
+
+    measure_network(grid, inpgen=inpgen, t_sim=1000.0)
+    print(nest.GetConnections())
+    # measure_network(grid, inpgen=inpgen, t_sim=200.0)
+    # print(nest.GetConnections())
+    #measure_network(grid, inpgen=inpgen, t_sim=5000.0)
+    #print(nest.GetConnections())
+    # plot_weights(weight_recorder)
+    plot_w(grid.weight_recorder)
+    print(nest.GetKernelStatus('rng_seed'))
