@@ -1,0 +1,1 @@
+/home/zbarni/software/installed/miniconda3/envs/eitn_22_manual/lib/nest/nestml_modidifed_module.so
