@@ -41,7 +41,7 @@
 #include "lockptrdatum.h"
 
 #include "iaf_psc_exp_wta__with_stdp_stp.h"
-#define DEBUG
+//#define DEBUG
 
 // ---------------------------------------------------------------------------
 //   Recordables map
@@ -258,8 +258,8 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_weights( nest::Time const & origin, 
         std::cout << "Evolved w_ik for " << it << " -> " << get_node_id() << " = " << V_.localWeights_Wk[it]
                   << " from y(t) = " << V_.yt_epsp_traces[it]
                   << std::endl << std::flush;
-    }
 #endif
+    }
 }
 
 void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps( nest::Time const & origin, const long lag )
