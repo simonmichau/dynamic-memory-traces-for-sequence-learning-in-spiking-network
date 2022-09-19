@@ -395,11 +395,6 @@ public:
         return norm_sum;
     }
 
-    inline double set_normalization_sum(const double __v)
-    {
-        V_.normalization_sum = __v;
-    }
-
   /* getters/setters for variables transferred from synapse */
 
 protected:
