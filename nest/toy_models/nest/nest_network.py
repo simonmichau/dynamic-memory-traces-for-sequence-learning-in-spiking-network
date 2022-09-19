@@ -335,7 +335,8 @@ class Network(object):
 
                 # TODO this is only for toy model - disable for normal conditions
                 assert K == 1
-                nc.set({'fixed_spiketimes': np.array(shared_params.output_spikes[m]).astype(float)})
+                if shared_params.use_fixed_spike_times:
+                    nc.set({'fixed_spiketimes': np.array(shared_params.output_spikes[m]).astype(float)})
 
                 circuit_list.append(WTACircuit(nc, (n, m)))
         self.circuits = circuit_list

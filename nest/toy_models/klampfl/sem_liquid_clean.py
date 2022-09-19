@@ -608,25 +608,26 @@ class SEMLiquid(object):
         if t.sum()>1:
             self.u[self.tsize:][numpy.invert(t)] = -numpy.infty
         # calculate output probabilities
-        expU = numpy.exp(self.u - numpy.max(self.u))
+        expU = numpy.exp(self.u - numpy.max(self.u)) # TODO test exp(u) instead of exp(u-max(u))
         self.Zp = expU / numpy.dot(self.groups, expU)
-        self.Zp[:self.tsize] = (1-self.Znoise) * self.Zp[:self.tsize] + \
-            self.Znoise/numpy.sum(self.groups[:self.tsize,:self.tsize], axis=0)
+        #self.Zp[:self.tsize] = (1-self.Znoise) * self.Zp[:self.tsize] + \
+        #    self.Znoise/numpy.sum(self.groups[:self.tsize,:self.tsize], axis=0)
         # draw output spikes
-        self.r = self.rmax*self.Zp
+        self.r = self.rmax*self.Zp  # normalizes firing rate
         self.r[self.tsize:] *= self.rmax_rdt*self.Zp[self.tsize:]
         self.Z = (numpy.random.exponential(1.0/self.r) <= self.dt).astype(int)
 
         # TODO revert  /remove - manual recurrent spikes
-        if isinstance(shared_params.output_spikes[0], list):
-            # for each cell, set corresponding entry in self.Z to 1
-            for neuron_idx, out_spikes in enumerate(shared_params.output_spikes):
-                self.Z[neuron_idx] = int(self.step in out_spikes)
-        else:
-            if self.step in shared_params.output_spikes:  # TODO revert  /remove
-                self.Z = numpy.ones(self.Z.shape)
+        if shared_params.use_fixed_spike_times:
+            if isinstance(shared_params.output_spikes[0], list):
+                # for each cell, set corresponding entry in self.Z to 1
+                for neuron_idx, out_spikes in enumerate(shared_params.output_spikes):
+                    self.Z[neuron_idx] = int(self.step in out_spikes)
             else:
-                self.Z = numpy.zeros(self.Z.shape)
+                if self.step in shared_params.output_spikes:  # TODO revert  /remove
+                    self.Z = numpy.ones(self.Z.shape)
+                else:
+                    self.Z = numpy.zeros(self.Z.shape)
 
         self.calculate_entropies()
 
