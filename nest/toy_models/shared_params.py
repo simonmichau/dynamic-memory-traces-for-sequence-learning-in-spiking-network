@@ -7,6 +7,5 @@ output_spikes = [ [10, 15],
                   [20, ] ]
 sim_time = 30
 
-use_stp_rec = True                  #  STP on recurrent weights
+use_stp_rec = True                 # STP on recurrent weights
 use_variance_tracking = True       # adaptive learning rate
-# use_variance_tracking = False       # adaptive learning rate

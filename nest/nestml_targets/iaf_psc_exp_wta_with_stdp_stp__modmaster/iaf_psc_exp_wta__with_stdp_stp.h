@@ -548,13 +548,13 @@ private:
     double __P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
 
     std::vector<double> yt_epsp_traces = std::vector<double>(1000);  // synaptic activation traces, for each incoming synapse
-    std::vector<double> yt_epsp_decay = std::vector<double>(1000);  // synaptic activation traces, for each incoming synapse
-    std::vector<double> yt_epsp_rise = std::vector<double>(1000);  // synaptic activation traces, for each incoming synapse
+    std::vector<double> yt_epsp_decay = std::vector<double>(1000);  // synaptic activation traces, for each incoming synapse == EPSP1
+    std::vector<double> yt_epsp_rise = std::vector<double>(1000);  // synaptic activation traces, for each incoming synapse == EPSP2
     std::vector<double> preSynWeights = std::vector<double>(1000); // weights related to STP and only scaling the y(t)
     std::vector<double> localWeights_Wk = std::vector<double>(1000); // weights corresponding to w_k and only updated upon postsyn spikes
-    std::vector<double> Q = std::vector<double>(1000); //
-    std::vector<double> S = std::vector<double>(1000); //
-    std::vector<double> fixed_spiketimes;
+    std::vector<double> Q = std::vector<double>(1000); //  adaptive learning rate
+    std::vector<double> S = std::vector<double>(1000); //  adaptive learning rate
+    std::vector<double> fixed_spiketimes;  // for toy model
 
     double eta;
     double normalization_sum;

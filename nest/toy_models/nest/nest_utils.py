@@ -68,8 +68,8 @@ def record_variables_step(network):
     t_cur = nest.biological_time
 
     for idx, tgt in enumerate(inp_conns.target):
-        src = inp_conns.source[idx]
-        rel0_idx = tgt - min(inp_conns.target)
+        src = inp_conns.source[idx]  # global ID of source node
+        rel0_idx = tgt - min(inp_conns.target)  # array index relative to 0
         network.weight_recorder.append((t_cur, src, tgt, postsyn_weights[rel0_idx][src]))
         network.epsp_recorder.append((t_cur, src, tgt, postsyn_epsps[rel0_idx][src]))
 
@@ -77,7 +77,7 @@ def record_variables_step(network):
 def run_simulation(network, inpgen, t):
     """Pre-generates input patterns for duration of simulation and then runs the simulation"""
     inpgen.generate_input(t, t_origin=nest.biological_time)
-    update_presyn_ids(network)
+    update_presyn_ids(network)  # IMPORTANT - always set this after input generation
     # nest.Simulate(t)
     for t_ in range(int(t)):
         record_variables_step(network)
@@ -203,17 +203,17 @@ def generate_nest_code(neuron_model: str, synapse_model: str, regen=True, target
     # target += '___mod'
     module_name = "nestml_modified_master_module"
     target += '__modmaster'
-    if regen:
-        codegen_opts = {"neuron_synapse_pairs": [{'neuron': neuron_model,
-                                                  'synapse': synapse_model,
-                                                  'post_ports': ['post_spikes'],
-                                                  }]}
-        generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/" + neuron_model + ".nestml",
-                                         os.environ["PWD"] + "/nestml_models/" + synapse_model + ".nestml"],
-                             target_path=os.environ["PWD"] + "/nestml_targets/" + target,
-                             codegen_opts=codegen_opts,
-                             module_name=module_name,
-                             dev=True)
+    # if regen:
+    #     codegen_opts = {"neuron_synapse_pairs": [{'neuron': neuron_model,
+    #                                               'synapse': synapse_model,
+    #                                               'post_ports': ['post_spikes'],
+    #                                               }]}
+    #     generate_nest_target(input_path=[os.environ["PWD"] + "/nestml_models/" + neuron_model + ".nestml",
+    #                                      os.environ["PWD"] + "/nestml_models/" + synapse_model + ".nestml"],
+    #                          target_path=os.environ["PWD"] + "/nestml_targets/" + target,
+    #                          codegen_opts=codegen_opts,
+    #                          module_name=module_name,
+    #                          dev=True)
     nest.Install(module_name)
     mangled_neuron_name = neuron_model + "__with_" + synapse_model
     mangled_synapse_name = synapse_model + "__with_" + neuron_model

@@ -695,7 +695,7 @@ class SEMLiquid(object):
             #else:
             r = self.rdyn[y==1]; u = self.udyn[y==1]; isi = self.isi[y==1]
             D = self.D[y==1]; U = self.U[y==1]; F = self.F[y==1]
-            self.rdyn[y==1] = 1 + (r - r*u - 1)*numpy.exp(-isi/(D+eps))
+            self.rdyn[y==1] = 1 + (r - r*u - 1)*numpy.exp(-isi/(D+eps))  # TODO is this important? u_{k-1}
             self.udyn[y==1] = U + u*(1-U)*numpy.exp(-isi/(F+eps))
             self.isi += self.dt
             self.isi[y==1] = 0

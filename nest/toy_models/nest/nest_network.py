@@ -179,7 +179,7 @@ class InputGenerator(object):
                 'delay': 1.,
                 'U': 0.5,
                 'u': 0.5,
-                'use_stp': 0  # for some reason, input synapses are not dynamic.
+                'use_stp': 0  # TODO for some reason, input synapses are not dynamic.
             }
             nest.Connect(self.spike_generators, self.target_network.get_node_collections(), conn_dict,
                          syn_dict)
@@ -330,12 +330,12 @@ class Network(object):
         for m in range(self.m):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
-                nc = nest.Create(_NEURON_MODEL_NAME, K, {'tau_m': 20.0})
+                nc = nest.Create(_NEURON_MODEL_NAME, K,
+                                 {'tau_m': 20.0, 'use_variance_tracking': int(shared_params.use_variance_tracking)})
 
-                # TODO this is only for toy model
+                # TODO this is only for toy model - disable for normal conditions
                 assert K == 1
-                nc.set({'fixed_spiketimes': np.array(shared_params.output_spikes[m]).astype(float),
-                        'use_variance_tracking': int(shared_params.use_variance_tracking)})
+                nc.set({'fixed_spiketimes': np.array(shared_params.output_spikes[m]).astype(float)})
 
                 circuit_list.append(WTACircuit(nc, (n, m)))
         self.circuits = circuit_list
