@@ -532,8 +532,8 @@ private:
                 1000); // weights related to STP and only scaling the y(t)
         std::vector<double> localWeights_Wk = std::vector<double>(
                 1000); // weights corresponding to w_k and only updated upon postsyn spikes
-        std::vector<double> Q = std::vector<double>(1000); //  adaptive learning rate
-        std::vector<double> S = std::vector<double>(1000); //  adaptive learning rate
+        std::vector<double> Q = std::vector<double>(1000); //  adaptive learning rate (expected value of weight^2)
+        std::vector<double> S = std::vector<double>(1000); //  adaptive learning rate (expected value of weight)
         std::vector<double> fixed_spiketimes;  // for toy model
         std::vector<double> presyn_u_t;  // vector of u_i(t) from presynaptic nodes
 
@@ -729,7 +729,9 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     updateValue < std::vector < double >> (__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_presyn_ids, tmp_presyn_ids);
 
     if (tmp_presyn_ids.size()) {
+#ifdef DEBUG
         std::cout << "WARNING - resetting active sources!" << std::endl << std::flush;
+#endif
         for (auto &it: tmp_presyn_ids) {
             V_.activeSources.insert((unsigned long) (it));
         }
