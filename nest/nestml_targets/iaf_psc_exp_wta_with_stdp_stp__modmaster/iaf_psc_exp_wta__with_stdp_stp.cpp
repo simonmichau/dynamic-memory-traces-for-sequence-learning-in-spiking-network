@@ -318,7 +318,7 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
 //      S_.V_m = get_y() * 1.0;
         //  std::cout << S_.V_m << std::endl;
 
-        double rate = P_.R_max * std::exp(get_V_m()) / get_normalization_sum();
+        double rate = P_.R_max * std::exp(get_V_m() - V_.normalization_max) / get_normalization_sum();
         double p = __resolution * rate / 1000;
 
         bool use_fixed_spiketimes = V_.fixed_spiketimes.size() > 0;
@@ -367,6 +367,8 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
     // could reset the normalization factor to 0 here
     V_.normalization_max_prev = V_.normalization_max;  // store max if we need to sum later on
     V_.normalization_max = -1e12;  // reset to 0 as preparation for next update step
+
+    V_.presyn_u_t.clear();
 }
 
 // Do not move this function as inline to h-file. It depends on
