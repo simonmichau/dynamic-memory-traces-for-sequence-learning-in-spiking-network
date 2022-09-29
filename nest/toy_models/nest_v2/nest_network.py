@@ -152,7 +152,6 @@ class InputGenerator(object):
             pattern = []
             for j in range(self.n):
                 pattern.append(utils.generate_poisson_spiketrain(self.t_pattern[i], self.r_input))
-            #pattern = [[146.], [255.], [646.], [769.]]  # TODO remove this
             self.pattern_list.append(pattern)
 
     def generate_input(self, duration, t_origin=0.0, force_refresh_patterns=False):
@@ -274,9 +273,14 @@ class Network(object):
         self.t_sim = kwds.get('t_sim', 2000.0)  # TODO: remove or make work again
         # List containing all WTA circuits
         self.circuits = []
+        # NodeCollection containing all neurons of the grid
+        self.neuron_collection = None
         # ADMINISTRATIVE VARIABLES
         self.save_figures = kwds.get('save_figures', False)
         self.show_figures = kwds.get('show_figures', True)
+        #
+        self.use_stp = True
+        self.use_stdp = True
         # Create WTA circuits
         self.create_grid()
         # Establish interneuron connections
@@ -318,6 +322,10 @@ class Network(object):
             if node_id in i.nc.get()['global_id']:
                 return i.get_pos()
 
+    def refresh_neurons(self):
+        """Refreshes self.neurons based on self.circuits"""
+        self.neuron_collection = self.get_node_collections()
+
     def create_grid(self) -> list:
         """
         Create a **WTACircuit** object for every point on the (nxm) grid and returns all those objects in a list
@@ -329,15 +337,10 @@ class Network(object):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
                 nc = nest.Create(_NEURON_MODEL_NAME, K,
-                                 {'tau_m': 20.0, 'use_variance_tracking': int(shared_params.use_variance_tracking)})
-
-                # TODO this is only for toy model - disable for normal conditions
-                #assert K == 1
-                #if shared_params.use_fixed_spike_times:
-                #    nc.set({'fixed_spiketimes': np.array(shared_params.output_spikes[m]).astype(float)})
-
+                                 {'use_variance_tracking': int(shared_params.use_variance_tracking), 'use_stdp': int(self.use_stdp)})
                 circuit_list.append(WTACircuit(nc, (n, m)))
         self.circuits = circuit_list
+        self.refresh_neurons()
         return circuit_list
 
     def form_connections(self) -> None:
@@ -348,7 +351,7 @@ class Network(object):
         syn_dict = {
             "synapse_model": _SYNAPSE_MODEL_NAME,
             'delay': 1.,
-            'use_stp': int(shared_params.use_stp_rec)  # TODO revert
+            'use_stp': int(self.use_stp)
         }
 
         # Iterate over each WTACircuit object and establish connections to every other population with p(d)
@@ -359,7 +362,6 @@ class Network(object):
                     d = math.sqrt((self.circuits[i].get_x()-self.circuits[j].get_x())**2
                                   + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
                     conn_dict['p'] = self.lam * math.exp(-self.lam * d)
-                    # conn_dict['p'] = 1.
                     nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(),
                                  conn_dict, syn_dict)
 
@@ -523,11 +525,13 @@ if __name__ == '__main__':
     # TOY EXAMPLE
     _SYNAPSE_MODEL_NAME, weight_recorder = utils.init_weight_recorder(_SYNAPSE_MODEL_NAME)
 
-    grid = Network(grid_shape=(4, 2), k_min=2, k_max=10, n_inputs=10)
-    inpgen = InputGenerator(grid, r_noise=2, r_input=5, n_patterns=2, pattern_sequences=[[0]], use_noise=False, t_noise_range=[300.0, 500.0])
+    grid = Network(grid_shape=(2, 2), k_min=2, k_max=2, n_inputs=10)
+    inpgen = InputGenerator(grid, r_noise=2, r_input=50, n_patterns=1, t_pattern=[30.], pattern_sequences=[[0]], use_noise=False, t_noise_range=[30.0, 50.0])
 
     utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME  # important
-    shared_params.sim_time = 1000 #ms
-    utils.measure_toymodel(grid, inpgen=inpgen, t_sim=shared_params.sim_time)
+    shared_params.sim_time = 5000  # ms
+    utils.run_network(grid, inpgen=inpgen, t_sim=shared_params.sim_time, title="Run #1")
+    utils.run_network(grid, inpgen=inpgen, t_sim=shared_params.sim_time, title="Run #2", train=False)
+
 
     print(nest.GetKernelStatus('rng_seed'))

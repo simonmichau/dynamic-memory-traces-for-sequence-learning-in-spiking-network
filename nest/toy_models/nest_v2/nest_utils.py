@@ -75,9 +75,50 @@ def record_variables_step(network):
         network.epsp_recorder.append((t_cur, src, tgt, postsyn_epsps[rel0_idx][src]))
 
 
-def run_simulation(network, inpgen, t):
-    """Pre-generates input patterns for duration of simulation and then runs the simulation"""
+def disable_stdp(nc):
+    """Disables STDP for a given NodeCollection"""
+    nc.set({'use_stdp': int(False)})
+
+
+def enable_stdp(nc):
+    """Disables STDP for a given NodeCollection"""
+    nc.set({'use_stdp': int(True)})
+
+
+def disable_stp(nc):
+    synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec")
+    synapses.set({'use_stp': int(False)})
+
+
+def enable_stp(nc):
+    synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec")
+    synapses.set({'use_stp': int(True)})
+
+
+def test(network, inpgen, t):
+    # Disable STP and STDP
+    disable_stp(network.neuron_collection)
+    disable_stdp(network.neuron_collection)
+    # Pre-generate input
     inpgen.generate_input(t, t_origin=nest.biological_time)
+
+    update_presyn_ids(network)  # IMPORTANT - always set this after input generation
+    # for t_ in range(int(t/1000)):
+    #    record_variables_step(network)
+    #    nest.Simulate(1000)
+    record_variables_step(network)
+    nest.Simulate(t)
+    record_variables_step(network)
+
+
+def simulate(network, inpgen, t):
+    """Pre-generates input patterns for duration of simulation and then runs the simulation"""
+    # Enable STP and STDP
+    enable_stp(network.neuron_collection)
+    enable_stdp(network.neuron_collection)
+    # Pre-generate input
+    inpgen.generate_input(t, t_origin=nest.biological_time)
+
     update_presyn_ids(network)  # IMPORTANT - always set this after input generation
     #for t_ in range(int(t/1000)):
     #    record_variables_step(network)
@@ -85,6 +126,7 @@ def run_simulation(network, inpgen, t):
     record_variables_step(network)
     nest.Simulate(t)
     record_variables_step(network)
+
 
 def update_presyn_ids(network):
     """
@@ -97,8 +139,8 @@ def update_presyn_ids(network):
         gid.set({'presyn_ids': np.array(sources).astype(float)})
 
 
-def measure_toymodel(network, id_list: list = None, node_collection=None, readout_size: int = None,
-                    inpgen=None, t_sim: float = 5000.0, save_figures: bool = False):
+def run_network(network, id_list: list = None, node_collection=None, readout_size: int = None,
+                    inpgen=None, t_sim: float = 5000.0, save_figures: bool = False, title=None, train=True):
     """
     Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes, membrane potential and presented
     patterns. Requires an **InputGenerator** object for pattern input generation.
@@ -141,7 +183,10 @@ def measure_toymodel(network, id_list: list = None, node_collection=None, readou
     if inpgen is None:
         nest.Simulate(t_sim)
     else:
-        run_simulation(network, inpgen, t_sim)
+        if train:
+            simulate(network, inpgen, t_sim)
+        else:
+            test(network, inpgen, t_sim)
     run_time = time.time() - start_time
     print("Simulation complete in %s seconds. Real time factor=%s" % (run_time, run_time/(t_sim*0.001)))
 
@@ -152,7 +197,7 @@ def measure_toymodel(network, id_list: list = None, node_collection=None, readou
     fig.set_figwidth(10)
     fig.set_figheight(12)
 
-    # MEMBRANE POTENTIAL
+    # MULTIMETER
     dmm = network.multimeter.get()
     Vms = dmm["events"]["V_m"]
     ts = dmm["events"]["times"]
@@ -183,7 +228,7 @@ def measure_toymodel(network, id_list: list = None, node_collection=None, readou
         evs = dSD["senders"]
         ts_ = dSD["times"]
         indices = np.where(dSD["senders"] == neuron)[0]
-        axes[2].plot(ts_[indices], evs[indices], "o")
+        axes[2].plot(ts_[indices], evs[indices], ".")
         axes[2].set_title("Network spike events")
         axes[2].set_ylabel("Spike ID")
 
@@ -207,6 +252,8 @@ def measure_toymodel(network, id_list: list = None, node_collection=None, readou
         axes[4].set_ylabel("Input channels")
         axes[4].set_xlim(time_shift, nest.biological_time)
         axes[4].set_xlabel("time (ms)")
+    if title is not None:
+        fig.suptitle(title, fontsize=20)
 
     fig.tight_layout()
 
