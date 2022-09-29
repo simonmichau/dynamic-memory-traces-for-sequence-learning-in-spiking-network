@@ -48,7 +48,7 @@ namespace nest {
         const Name _R_max("R_max");
         const Name _eta("eta");
         const Name _use_variance_tracking("use_variance_tracking");
-        const Name _learning_enabled("learning_enabled");
+        const Name _use_stdp("use_stdp");
 
         // to record from
         const Name _epsp_trace("epsp_trace");
@@ -290,12 +290,12 @@ public:
         P_.use_variance_tracking = __v;
     }
 
-    inline double get_learning_enabled() const {
-        return P_.learning_enabled;
+    inline double get_use_stdp() const {
+        return P_.use_stdp;
     }
 
-    inline void set_learning_enabled(const double __v) {
-        P_.learning_enabled = __v;
+    inline void set_use_stdp(const double __v) {
+        P_.use_stdp = __v;
     }
 
     inline double get_tau_syn() const {
@@ -470,7 +470,7 @@ private:
         //!  Maximum rate within current WTA circuit
         double R_max;
         double use_variance_tracking;
-        double learning_enabled;
+        double use_stdp;
 
         /**
          * Initialize parameters to their default values.
@@ -685,7 +685,7 @@ inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) con
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn, get_tau_syn());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_use_variance_tracking, get_use_variance_tracking());
-    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_learning_enabled, get_learning_enabled());
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_use_stdp, get_use_stdp());
 
     // initial values for state variables in ODE or kernel
     def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, get_r());
@@ -716,8 +716,8 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, tmp_R_max);
     double tmp_use_variance_tracking = get_use_variance_tracking();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_use_variance_tracking, tmp_use_variance_tracking);
-    double tmp_learning_enabled = get_learning_enabled();
-    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_learning_enabled, tmp_learning_enabled);
+    double tmp_use_stdp = get_use_stdp();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_use_stdp, tmp_use_stdp);
 
     // initial values for state variables in ODE or kernel
     long tmp_r = get_r();
@@ -762,7 +762,7 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     set_tau_syn(tmp_tau_syn);
     set_R_max(tmp_R_max);
     set_use_variance_tracking(tmp_use_variance_tracking);
-    set_learning_enabled(tmp_learning_enabled);
+    set_use_stdp(tmp_use_stdp);
     set_r(tmp_r);
     set_V_m(tmp_V_m);
     set_eta(tmp_eta);

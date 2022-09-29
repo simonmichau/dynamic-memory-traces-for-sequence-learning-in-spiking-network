@@ -207,39 +207,42 @@ void iaf_psc_exp_wta__with_stdp_stp::pre_run_hook() {
 // ---------------------------------------------------------------------------
 void iaf_psc_exp_wta__with_stdp_stp::evolve_weights(nest::Time const &origin, const long lag) // eq (5)
 {
-    /**
-    IMPORTANT
-    **/
-//    double eta = 0.05 / (origin.get_steps() + 1);  // +1 is needed for consistency with Klampfl
-    double eta_;
+    if (P_.use_stdp){
+        /**
+        IMPORTANT
+        **/
+        //double eta = 0.05 / (origin.get_steps() + 1);  // +1 is needed for consistency with Klampfl
+        double eta_;
 
-    for (auto &it: V_.activeSources) {
-        double w = V_.localWeights_Wk[it];  // this should be negative - same sign as in Klampfl
-        double P = std::exp(w);
+        for (auto &it: V_.activeSources) {
+            double w = V_.localWeights_Wk[it];  // this should be negative - same sign as in Klampfl
+            double P = std::exp(w);
 
-        if (P_.use_variance_tracking) {
-            eta_ = V_.eta * (V_.Q[it] - V_.S[it] * V_.S[it]) / (std::exp(-V_.S[it]) + 1);
-        } else {
-            eta_ = V_.eta / (origin.get_steps() + 1);  // +1 is needed for consistency with Klampfl
-        }
+            if (P_.use_variance_tracking) {
+                eta_ = V_.eta * (V_.Q[it] - V_.S[it] * V_.S[it]) / (std::exp(-V_.S[it]) + 1);
+            } else {
+                eta_ = V_.eta / (origin.get_steps() + 1);  // +1 is needed for consistency with Klampfl
+            }
 
-        double truncP = std::max(P, eta_);
-        double dw = (V_.yt_epsp_traces[it] - P) / truncP;
+            double truncP = std::max(P, eta_);
+            double dw = (V_.yt_epsp_traces[it] - P) / truncP;
 
-        V_.localWeights_Wk[it] += eta_ * dw;
+            V_.localWeights_Wk[it] += eta_ * dw;
 
-        if (P_.use_variance_tracking) {
-            double w = V_.localWeights_Wk[it];
-            V_.S[it] += eta_ * (w - V_.S[it]);
-            V_.Q[it] += eta_ * (w * w - V_.Q[it]);
-        }
+            if (P_.use_variance_tracking) {
+                double w = V_.localWeights_Wk[it];
+                V_.S[it] += eta_ * (w - V_.S[it]);
+                V_.Q[it] += eta_ * (w * w - V_.Q[it]);
+            }
 
 #ifdef DEBUG
-        std::cout << "Evolved w_ik for " << it << " -> " << get_node_id() << " = " << V_.localWeights_Wk[it]
-                  << " from y(t) = " << V_.yt_epsp_traces[it]
-                  << std::endl << std::flush;
+            std::cout << "Evolved w_ik for " << it << " -> " << get_node_id() << " = " << V_.localWeights_Wk[it]
+                      << " from y(t) = " << V_.yt_epsp_traces[it]
+                      << std::endl << std::flush;
 #endif
+        }
     }
+
 }
 
 void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, const long lag) {
