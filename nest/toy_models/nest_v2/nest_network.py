@@ -505,12 +505,6 @@ regen = False
 
 
 if __name__ == '__main__':
-    print(sys.argv)
-    if len(sys.argv) > 1:
-        task = sys.argv[1]
-    else:
-        task = ""
-
     # Generate NEST code
     utils.generate_nest_code(NEURON_MODEL, SYNAPSE_MODEL)
 
@@ -526,12 +520,10 @@ if __name__ == '__main__':
     _SYNAPSE_MODEL_NAME, weight_recorder = utils.init_weight_recorder(_SYNAPSE_MODEL_NAME)
 
     grid = Network(grid_shape=(2, 2), k_min=2, k_max=2, n_inputs=10)
-    inpgen = InputGenerator(grid, r_noise=2, r_input=50, n_patterns=1, t_pattern=[30.], pattern_sequences=[[0]], use_noise=False, t_noise_range=[30.0, 50.0])
+    inpgen = InputGenerator(grid, r_noise=2, r_input=50, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=False, t_noise_range=[300.0, 500.0])
 
     utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME  # important
-    shared_params.sim_time = 5000  # ms
-    utils.run_network(grid, inpgen=inpgen, t_sim=shared_params.sim_time, title="Run #1")
-    utils.run_network(grid, inpgen=inpgen, t_sim=shared_params.sim_time, title="Run #2", train=False)
-
+    utils.run_network(grid, inpgen=inpgen, t_sim=5000, dt_rec=100, title="Simulation")
+    utils.run_network(grid, inpgen=inpgen, t_sim=3000, dt_rec=100, title="Test", train=True)
 
     print(nest.GetKernelStatus('rng_seed'))
