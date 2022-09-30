@@ -62,15 +62,21 @@ def record_variables_step(network):
     """
     Extract and store input weights from the variables stored in the postsynaptic neurons
     """
+    print("Recording step")
     inp_conns = nest.GetConnections(synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec")
     postsyn_weights = nest.GetStatus(network.get_node_collections(), 'weights')
     postsyn_epsps = nest.GetStatus(network.get_node_collections(), 'epsp_trace')
 
     t_cur = nest.biological_time
 
-    for idx, tgt in enumerate(inp_conns.target):
-        src = inp_conns.source[idx]  # global ID of source node
-        rel0_idx = tgt - min(inp_conns.target)  # array index relative to 0
+    # TODO: make more runtime efficient
+    inp_conns_src = inp_conns.source
+    inp_conns_tgt = inp_conns.target
+    inp_conns_tgt_min = min(inp_conns_tgt)
+    to_do = len(inp_conns.target)
+    for idx, tgt in enumerate(inp_conns_tgt):
+        src = inp_conns_src[idx]  # global ID of source node
+        rel0_idx = tgt - inp_conns_tgt_min  # array index relative to 0
         network.weight_recorder.append((t_cur, src, tgt, postsyn_weights[rel0_idx][src]))
         network.epsp_recorder.append((t_cur, src, tgt, postsyn_epsps[rel0_idx][src]))
 
@@ -111,6 +117,7 @@ def test(network, inpgen, t, dt_rec=None):
         for t_ in range(int(t/dt_rec)):
             record_variables_step(network)
             nest.Simulate(dt_rec)
+            print("step %s/%s complete." % (t_, t/dt_rec))
         record_variables_step(network)
 
 
@@ -121,6 +128,7 @@ def simulate(network, inpgen, t, dt_rec=None):
     enable_stdp(network.neuron_collection)
     # Pre-generate input
     inpgen.generate_input(t, t_origin=nest.biological_time)
+    print("update_presyn_ids...")
     update_presyn_ids(network)  # IMPORTANT - always set this after input generation
 
     if dt_rec is None:
@@ -131,6 +139,7 @@ def simulate(network, inpgen, t, dt_rec=None):
         for t_ in range(int(t/dt_rec)):
             record_variables_step(network)
             nest.Simulate(dt_rec)
+            print("Step %s/%s complete. Time passed since simulation start: %s" % (t_, int(t/dt_rec), nest.biological_time))
         record_variables_step(network)
 
 
@@ -146,7 +155,8 @@ def update_presyn_ids(network):
 
 
 def run_network(network, id_list: list = None, node_collection=None, readout_size: int = None,
-                    inpgen=None, t_sim: float = 5000.0, save_figures: bool = False, title=None, train=True, dt_rec=None):
+                inpgen=None, t_sim: float = 5000.0, save_figures: bool = False, show_figures: bool = True,
+                title=None, train=True, dt_rec=None, plot_history=False, create_plot: bool = True):
     """
     Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes, membrane potential and presented
     patterns. Requires an **InputGenerator** object for pattern input generation.
@@ -184,8 +194,6 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
         nest.Connect(node_collection, network.spikerecorder)
 
     # Run simulation (with or without input)
-    print("Simulating...")
-    start_time = time.time()
     if inpgen is None:
         nest.Simulate(t_sim)
     else:
@@ -193,90 +201,101 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
             simulate(network, inpgen, t_sim, dt_rec)
         else:
             test(network, inpgen, t_sim, dt_rec)
-    run_time = time.time() - start_time
-    print("Simulation complete in %s seconds. Real time factor=%s" % (run_time, run_time/(t_sim*0.001)))
 
-    print("Plotting...")
-    start_time = time.time()
-    # Initialize plot
-    fig, axes = plt.subplots(5, 1, sharex=False)
-    fig.set_figwidth(10)
-    fig.set_figheight(12)
+    if create_plot:
+        print("Plotting...")
+        start_time = time.time()
+        # Initialize plot
+        fig, axes = plt.subplots(5, 1, sharex=False)
+        fig.set_figwidth(10)
+        fig.set_figheight(12)
 
-    # MULTIMETER
-    dmm = network.multimeter.get()
-    Vms = dmm["events"]["V_m"]
-    ts = dmm["events"]["times"]
+        # MULTIMETER
+        dmm = network.multimeter.get()
+        Vms = dmm["events"]["V_m"]
+        ts = dmm["events"]["times"]
 
-    # SPIKERECORDER
-    dSD = network.spikerecorder.get("events")
-    evs = dSD["senders"]
-    ts_ = dSD["times"]
+        # SPIKERECORDER
+        dSD = network.spikerecorder.get("events")
+        evs = dSD["senders"]
+        ts_ = dSD["times"]
 
-    for idx, neuron in enumerate(np.unique(dmm["events"]["senders"])):  # iterate over all sender neurons
-        src_gids = np.unique(dmm["events"]["senders"]).tolist()
-        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        # get the indices after t_sim_start
+        t_sim_start = nest.biological_time - t_sim
+        multimeter_time_window = np.where(ts > t_sim_start)[0]
+        spikerecorder_time_window = np.where(ts_ > t_sim_start)[0]
 
-        # MEMBRANE POTENTIAL
-        indices = np.where(dmm["events"]["senders"] == neuron)[0]  # get the indices of events where 'neuron' was the sender
-        axes[0].plot(ts[indices], Vms[indices], label=f'neuron: {neuron}')  # plot the membrane potential of 'neuron'
+        n_senders = len(np.unique(dmm["events"]["senders"]))
+        for idx, neuron in enumerate(np.unique(dmm["events"]["senders"])):  # iterate over all sender neurons
+            print("%s/%s" % (idx, n_senders))  # , end="\r"
+            src_gids = np.unique(dmm["events"]["senders"]).tolist()
+            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
-        # SPIKES
-        indices = np.where(dSD["senders"] == neuron)[0]
-        axes[1].plot(ts_[indices], evs[indices], ".")
+            # MEMBRANE POTENTIAL
+            indices = np.where(dmm["events"]["senders"] == neuron)[0]  # get the indices of events where 'neuron' was the sender
+            if not plot_history:  # remove all indices from outside of multimeter_time_window
+                indices = [i for i in indices if i in multimeter_time_window]
+            axes[0].plot(ts[indices], Vms[indices], label=f'neuron: {neuron}')  # plot the membrane potential of 'neuron'
 
-        # EPSPs
-        for src_idx, src in enumerate(src_gids):
-            c = colors[src_idx%len(colors)]
-            filtered_epsps_dict = {'t': [], 'epsp': []}
-            for t, src_, tgt_, epsp in network.epsp_recorder:
-                if src_ == src and tgt_ == neuron:
-                    filtered_epsps_dict['t'].append(t)
-                    filtered_epsps_dict['epsp'].append(epsp)
-            #if len(filtered_epsps):
-            axes[2].plot(filtered_epsps_dict['t'], filtered_epsps_dict['epsp'], color=c)  # label=f'{src} -> {neuron}'
+            # SPIKES
+            indices = np.where(dSD["senders"] == neuron)[0]
+            if not plot_history:  # remove all indices from outside of spikerecorder_time_window
+                indices = [i for i in indices if i in spikerecorder_time_window]
+            axes[1].plot(ts_[indices], evs[indices], ".")
 
-        # WEIGHTS
-        for src_idx, src in enumerate(src_gids):
-            c = colors[src_idx%len(colors)]
-            filtered_weights_dict = {'t': [], 'w': []}
-            for t, src_, tgt_, w in network.weight_recorder:
-                if src_ == src and tgt_ == neuron:
-                    filtered_weights_dict['t'].append(t)
-                    filtered_weights_dict['w'].append(w)
-            #if len(filtered_weights):
-            axes[3].plot(filtered_weights_dict['t'], filtered_weights_dict['w'], color=c)  # label=f'{src} -> {neuron}'
+            # EPSPs
+            for src_idx, src in enumerate(src_gids):
+                c = colors[src_idx%len(colors)]
+                filtered_epsps_dict = {'t': [], 'epsp': []}
+                for t, src_, tgt_, epsp in network.epsp_recorder:
+                    if src_ == src and tgt_ == neuron: # and t >= t_sim_start
+                        filtered_epsps_dict['t'].append(t)
+                        filtered_epsps_dict['epsp'].append(epsp)
+                #if len(filtered_epsps):
+                axes[2].plot(filtered_epsps_dict['t'], filtered_epsps_dict['epsp'], color=c)  # label=f'{src} -> {neuron}'
 
-        # PRESENTED PATTERNS
-        time_shift = nest.biological_time - t_sim
-        if inpgen is not None:
-            st = inpgen.spiketrain
-            for i in range(len(st)):
-                # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
-                axes[4].plot(np.add(time_shift, st[i]), [i] * len(st[i]), ".", color='orange')
+            # WEIGHTS
+            for src_idx, src in enumerate(src_gids):
+                c = colors[src_idx%len(colors)]
+                filtered_weights_dict = {'t': [], 'w': []}
+                for t, src_, tgt_, w in network.weight_recorder:
+                    if src_ == src and tgt_ == neuron: # and t >= t_sim_start
+                        filtered_weights_dict['t'].append(t)
+                        filtered_weights_dict['w'].append(w)
+                #if len(filtered_weights):
+                axes[3].plot(filtered_weights_dict['t'], filtered_weights_dict['w'], color=c)  # label=f'{src} -> {neuron}'
 
-    axes[0].set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
-    axes[0].set_ylabel("Membrane potential (mV)")
-    axes[1].set_title("Network spike events")
-    axes[1].set_ylabel("Spike ID")
-    axes[2].set_title("EPSP traces")
-    # axes[2].legend()
-    axes[3].set_title("Weights")
-    axes[3].set_ylabel("w")
-    # axes[3].legend()
-    axes[4].set_ylabel("Input channels")
-    axes[4].set_xlim(time_shift, nest.biological_time)
-    axes[4].set_xlabel("time (ms)")
-    if title is not None:
-        fig.suptitle(title, fontsize=20)
+            # PRESENTED PATTERNS
+            time_shift = nest.biological_time - t_sim
+            if inpgen is not None:
+                st = inpgen.spiketrain
+                for i in range(len(st)):
+                    # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
+                    axes[4].plot(np.add(time_shift, st[i]), [i] * len(st[i]), ".", color='orange')
 
-    fig.tight_layout()
+        axes[0].set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
+        axes[0].set_ylabel("Membrane potential (mV)")
+        axes[1].set_title("Network spike events")
+        axes[1].set_ylabel("Spike ID")
+        axes[2].set_title("EPSP traces")
+        # axes[2].legend()
+        axes[3].set_title("Weights")
+        axes[3].set_ylabel("w")
+        # axes[3].legend()
+        axes[4].set_ylabel("Input channels")
+        axes[4].set_xlim(time_shift, nest.biological_time)
+        axes[4].set_xlabel("time (ms)")
+        if title is not None:
+            fig.suptitle(title, fontsize=20)
 
-    run_time = time.time() - start_time
-    print("Plotting complete in %s" % run_time)
-    if save_figures:
-        plt.savefig("simulation_%ds.png" % int(nest.biological_time/1000.0))
-    plt.show()
+        fig.tight_layout()
+
+        run_time = time.time() - start_time
+        print("Plotting complete in %s" % run_time)
+        if save_figures:
+            plt.savefig("simulation_%ds.png" % int(nest.biological_time/1000.0))
+        if show_figures:
+            plt.show()
     return id_list
 
 
@@ -312,6 +331,7 @@ def plot_weights(weight_recorder):
     ax.plot(t_vec, w_vec)
     # ax.set_yscale('log')
     fig.show()
+
 
 def plot_w(weights):
     """
