@@ -187,10 +187,10 @@ class InputGenerator(object):
             utils.randomize_outgoing_connections(self.spike_generators)
 
         # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
-        t = 0
+        t = nest.biological_time
         spiketrain_list = [[]] * self.n  # list to store the spiketrain of each input channel
         current_pattern_id = self.pattern_sequences[self.current_pattern_index[0]][self.current_pattern_index[1]]
-        while t < duration:
+        while t < nest.biological_time + duration:
             # Randomly draw the duration of the noise phase
             t_noise_phase = self.t_noise_range[0] + np.random.rand()*(self.t_noise_range[1]-self.t_noise_range[0])
 
@@ -204,7 +204,7 @@ class InputGenerator(object):
             current_pattern_id = self.get_next_pattern_id()
 
         # cutoff values over t=origin+duration
-        t_threshold = duration
+        t_threshold = nest.biological_time + duration
         for i in range(len(spiketrain_list)):
             threshold_index = np.searchsorted(spiketrain_list[i], t_threshold)
             spiketrain_list[i] = spiketrain_list[i][0: threshold_index]
@@ -215,8 +215,9 @@ class InputGenerator(object):
         for i in range(self.n):
             # past_spikes = self.spike_generators[i].get('spike_times')
             # new_spiketrain = past_spikes.tolist().append(spiketrain_list[i])
-            self.spike_generators[i].set({'spike_times': spiketrain_list[i]})  # TODO revert this
-            # self.spike_generators[i].set({'spike_times': [146., 255., 646., 769.]})
+            self.spike_generators[i].spike_times = np.append(self.spike_generators[i].spike_times, spiketrain_list[i])
+            #self.spike_generators[i].spike_times.append(spiketrain_list[i])  # TODO revert this
+            #self.spike_generators[i].set({'spike_times': [1146., 1255., 1646., 1769.]})
             #self.spike_generators[i].set({'spike_times': shared_params.input_spikes})
 
     def get_next_pattern_id(self) -> int:
@@ -510,20 +511,20 @@ if __name__ == '__main__':
 
     print(_SYNAPSE_MODEL_NAME, " installed: ", _SYNAPSE_MODEL_NAME in nest.synapse_models)
     print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
-    nest.print_time = True
     nest.resolution = 1.
     nest.set_verbosity('M_ERROR')
-    nest.print_time = False
+    nest.print_time = True
     nest.SetKernelStatus({'resolution': 1., 'use_compressed_spikes': False})  # no touch!
 
     # TOY EXAMPLE
     _SYNAPSE_MODEL_NAME, weight_recorder = utils.init_weight_recorder(_SYNAPSE_MODEL_NAME)
 
-    grid = Network(grid_shape=(2, 2), k_min=2, k_max=2, n_inputs=10)
-    inpgen = InputGenerator(grid, r_noise=2, r_input=50, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=False, t_noise_range=[300.0, 500.0])
+    grid = Network(grid_shape=(4, 2), k_min=2, k_max=5, n_inputs=50)
+    inpgen = InputGenerator(grid, r_noise=2, r_input=20, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=False, t_noise_range=[300.0, 500.0])
 
     utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME  # important
-    utils.run_network(grid, inpgen=inpgen, t_sim=5000, dt_rec=100, title="Simulation")
-    utils.run_network(grid, inpgen=inpgen, t_sim=3000, dt_rec=100, title="Test", train=True)
+    id_list = utils.run_network(grid, inpgen=inpgen, t_sim=10000, dt_rec=1000, title="Simulation #1")
+    utils.run_network(grid, inpgen=inpgen, t_sim=3000, dt_rec=1000, title="Test #1", id_list=id_list, train=False)
+    utils.run_network(grid, inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, train=True, plot_history=True)
 
     print(nest.GetKernelStatus('rng_seed'))

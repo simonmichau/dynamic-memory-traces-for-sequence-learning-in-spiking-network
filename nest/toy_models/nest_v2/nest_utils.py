@@ -69,7 +69,6 @@ def record_variables_step(network):
 
     t_cur = nest.biological_time
 
-    # TODO: make more runtime efficient
     inp_conns_src = inp_conns.source
     inp_conns_tgt = inp_conns.target
     inp_conns_tgt_min = min(inp_conns_tgt)
@@ -206,7 +205,7 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
         print("Plotting...")
         start_time = time.time()
         # Initialize plot
-        fig, axes = plt.subplots(5, 1, sharex=False)
+        fig, axes = plt.subplots(5, 1, sharex=not plot_history)  # only sync x axis if not the whole history is observed
         fig.set_figwidth(10)
         fig.set_figheight(12)
 
@@ -265,13 +264,13 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
                 #if len(filtered_weights):
                 axes[3].plot(filtered_weights_dict['t'], filtered_weights_dict['w'], color=c)  # label=f'{src} -> {neuron}'
 
-            # PRESENTED PATTERNS
-            time_shift = nest.biological_time - t_sim
-            if inpgen is not None:
-                st = inpgen.spiketrain
-                for i in range(len(st)):
-                    # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
-                    axes[4].plot(np.add(time_shift, st[i]), [i] * len(st[i]), ".", color='orange')
+        # PRESENTED PATTERNS
+        time_shift = nest.biological_time - t_sim
+        if inpgen is not None:
+            st = inpgen.spiketrain
+            for i in range(len(st)):
+                # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
+                axes[4].plot(st[i], [i] * len(st[i]), ".", color='orange')
 
         axes[0].set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
         axes[0].set_ylabel("Membrane potential (mV)")
