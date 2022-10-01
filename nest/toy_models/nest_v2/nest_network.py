@@ -107,7 +107,13 @@ class InputGenerator(object):
         # Tuple storing the sequence index and the index of the current pattern
         self.current_pattern_index = [0, 0]
 
+        # NodeCollection of spike_generators
         self.spike_generators = None
+        # NodeCollection of parrot_neurons used for poisson noise
+        self.parrots = None
+
+        # Spikerecorder for poisson noise
+        self.noiserecorder = None
 
         self.use_noise = kwds.get('use_noise', True)
         # self.use_input = kwds.get('use_input', True)
@@ -124,8 +130,8 @@ class InputGenerator(object):
         # Create n poisson input channels with firing rate r_noise
         poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.r_noise})
         # Create n parrot_neuron and connect one poisson generator to each of it
-        parrots = nest.Create('parrot_neuron', self.n)
-        nest.Connect(poisson_gens, parrots, 'one_to_one')
+        self.parrots = nest.Create('parrot_neuron', self.n)
+        nest.Connect(poisson_gens, self.parrots, 'one_to_one')
         # Connect parrots to target network
         conn_dict = {
             'rule': 'pairwise_bernoulli',
@@ -135,9 +141,9 @@ class InputGenerator(object):
         syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
                     'delay': 1.
                     }
-        nest.Connect(parrots, self.target_network.get_node_collections(), conn_dict, syn_dict)
+        nest.Connect(self.parrots, self.target_network.get_node_collections(), conn_dict, syn_dict)
         # Update connection weights to random values
-        utils.randomize_outgoing_connections(parrots)
+        utils.randomize_outgoing_connections(self.parrots)
 
     def create_patterns(self) -> None:
         """Creates poisson patterns according to the InputGenerator's
@@ -204,18 +210,20 @@ class InputGenerator(object):
             current_pattern_id = self.get_next_pattern_id()
 
         # cutoff values over t=origin+duration
-        t_threshold = nest.biological_time + duration
-        for i in range(len(spiketrain_list)):
-            threshold_index = np.searchsorted(spiketrain_list[i], t_threshold)
-            spiketrain_list[i] = spiketrain_list[i][0: threshold_index]
+        #t_threshold = nest.biological_time + duration
+        #for i in range(len(spiketrain_list)):
+        #    threshold_index = np.searchsorted(spiketrain_list[i], t_threshold)
+        #    spiketrain_list[i] = spiketrain_list[i][0: threshold_index]
 
-        self.spiketrain = spiketrain_list
+        #self.spiketrain = spiketrain_list
+        for i in range(len(self.spiketrain)):
+            self.spiketrain[i] = self.spiketrain[i] + spiketrain_list[i]
 
         # Assign spiketrain_list to spike_generators
         for i in range(self.n):
             # past_spikes = self.spike_generators[i].get('spike_times')
             # new_spiketrain = past_spikes.tolist().append(spiketrain_list[i])
-            self.spike_generators[i].spike_times = np.append(self.spike_generators[i].spike_times, spiketrain_list[i])
+            self.spike_generators[i].spike_times = self.spiketrain[i]
             #self.spike_generators[i].spike_times.append(spiketrain_list[i])  # TODO revert this
             #self.spike_generators[i].set({'spike_times': [1146., 1255., 1646., 1769.]})
             #self.spike_generators[i].set({'spike_times': shared_params.input_spikes})
@@ -519,12 +527,12 @@ if __name__ == '__main__':
     # TOY EXAMPLE
     _SYNAPSE_MODEL_NAME, weight_recorder = utils.init_weight_recorder(_SYNAPSE_MODEL_NAME)
 
-    grid = Network(grid_shape=(4, 2), k_min=2, k_max=5, n_inputs=50)
-    inpgen = InputGenerator(grid, r_noise=2, r_input=20, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=False, t_noise_range=[300.0, 500.0])
+    grid = Network(grid_shape=(5, 5), k_min=2, k_max=5, n_inputs=50)
+    inpgen = InputGenerator(grid, r_noise=2, r_input=3, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=True, t_noise_range=[300.0, 500.0])
 
     utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME  # important
-    id_list = utils.run_network(grid, inpgen=inpgen, t_sim=10000, dt_rec=1000, title="Simulation #1")
-    utils.run_network(grid, inpgen=inpgen, t_sim=3000, dt_rec=1000, title="Test #1", id_list=id_list, train=False)
-    utils.run_network(grid, inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, train=True, plot_history=True)
+    id_list = utils.run_network(grid, inpgen=inpgen, t_sim=5000, dt_rec=1000, title="Simulation #1", readout_size=20, save_figures=False, show_figures=True)
+    utils.run_network(grid, inpgen=inpgen, t_sim=3000, dt_rec=1000, title="Test #1", id_list=id_list, train=False, save_figures=False, show_figures=True)
+    utils.run_network(grid, inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, train=True, plot_history=True, save_figures=True, show_figures=False)
 
     print(nest.GetKernelStatus('rng_seed'))

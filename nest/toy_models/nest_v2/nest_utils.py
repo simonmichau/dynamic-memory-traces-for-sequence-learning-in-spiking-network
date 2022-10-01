@@ -191,6 +191,10 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
     if network.spikerecorder is None:
         network.spikerecorder = nest.Create('spike_recorder')
         nest.Connect(node_collection, network.spikerecorder)
+    if inpgen.noiserecorder is None and inpgen is not None:
+        if inpgen.use_noise:
+            inpgen.noiserecorder = nest.Create('spike_recorder')
+            nest.Connect(inpgen.parrots, inpgen.noiserecorder)
 
     # Run simulation (with or without input)
     if inpgen is None:
@@ -219,10 +223,17 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
         evs = dSD["senders"]
         ts_ = dSD["times"]
 
+        # NOISERECORDER
+        nr = inpgen.noiserecorder.get("events")
+        evs__ = nr["senders"]
+        ts__ = nr["times"]
+
         # get the indices after t_sim_start
         t_sim_start = nest.biological_time - t_sim
         multimeter_time_window = np.where(ts > t_sim_start)[0]
         spikerecorder_time_window = np.where(ts_ > t_sim_start)[0]
+        noiserecorder_time_window = np.where(ts__ > t_sim_start)[0]
+
 
         n_senders = len(np.unique(dmm["events"]["senders"]))
         for idx, neuron in enumerate(np.unique(dmm["events"]["senders"])):  # iterate over all sender neurons
@@ -230,6 +241,7 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
             src_gids = np.unique(dmm["events"]["senders"]).tolist()
             colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
+            start_time_1 = time.time()
             # MEMBRANE POTENTIAL
             indices = np.where(dmm["events"]["senders"] == neuron)[0]  # get the indices of events where 'neuron' was the sender
             if not plot_history:  # remove all indices from outside of multimeter_time_window
@@ -241,7 +253,10 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
             if not plot_history:  # remove all indices from outside of spikerecorder_time_window
                 indices = [i for i in indices if i in spikerecorder_time_window]
             axes[1].plot(ts_[indices], evs[indices], ".")
+            run_time = time.time() - start_time_1
+            print("Membrane potential and Spikes complete in %s" % run_time)
 
+            start_time_2 = time.time()
             # EPSPs
             for src_idx, src in enumerate(src_gids):
                 c = colors[src_idx%len(colors)]
@@ -264,6 +279,9 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
                 #if len(filtered_weights):
                 axes[3].plot(filtered_weights_dict['t'], filtered_weights_dict['w'], color=c)  # label=f'{src} -> {neuron}'
 
+            run_time = time.time() - start_time_2
+            print("EPSPs and weights complete in %s" % run_time)
+
         # PRESENTED PATTERNS
         time_shift = nest.biological_time - t_sim
         if inpgen is not None:
@@ -271,6 +289,16 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
             for i in range(len(st)):
                 # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
                 axes[4].plot(st[i], [i] * len(st[i]), ".", color='orange')
+            if not plot_history:
+                axes[4].set_xlim(time_shift, nest.biological_time)
+
+        # NOISE
+        for parrot in np.unique(nr["senders"]):
+            indices = np.where(nr["senders"] == parrot)[0]
+            if not plot_history:  # remove all indices from outside of noiserecorder_time_window
+                indices = [i for i in indices if i in noiserecorder_time_window]
+            axes[4].plot(ts__[indices], evs__[indices], ".", color='blue')
+
 
         axes[0].set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
         axes[0].set_ylabel("Membrane potential (mV)")
@@ -282,7 +310,6 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
         axes[3].set_ylabel("w")
         # axes[3].legend()
         axes[4].set_ylabel("Input channels")
-        axes[4].set_xlim(time_shift, nest.biological_time)
         axes[4].set_xlabel("time (ms)")
         if title is not None:
             fig.suptitle(title, fontsize=20)
@@ -292,7 +319,7 @@ def run_network(network, id_list: list = None, node_collection=None, readout_siz
         run_time = time.time() - start_time
         print("Plotting complete in %s" % run_time)
         if save_figures:
-            plt.savefig("simulation_%ds.png" % int(nest.biological_time/1000.0))
+            plt.savefig("simulation_%ds.png" % int(time.time()))
         if show_figures:
             plt.show()
     return id_list
