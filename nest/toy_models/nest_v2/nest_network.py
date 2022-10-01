@@ -223,7 +223,7 @@ class InputGenerator(object):
         for i in range(self.n):
             # past_spikes = self.spike_generators[i].get('spike_times')
             # new_spiketrain = past_spikes.tolist().append(spiketrain_list[i])
-            self.spike_generators[i].spike_times = self.spiketrain[i]
+            self.spike_generators[i].spike_times = self.spiketrain[i]  # TODO fix non descending order issue
             #self.spike_generators[i].spike_times.append(spiketrain_list[i])  # TODO revert this
             #self.spike_generators[i].set({'spike_times': [1146., 1255., 1646., 1769.]})
             #self.spike_generators[i].set({'spike_times': shared_params.input_spikes})
@@ -531,8 +531,11 @@ if __name__ == '__main__':
     inpgen = InputGenerator(grid, r_noise=2, r_input=3, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=True, t_noise_range=[300.0, 500.0])
 
     utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME  # important
-    id_list = utils.run_network(grid, inpgen=inpgen, t_sim=5000, dt_rec=1000, title="Simulation #1", readout_size=20, save_figures=False, show_figures=True)
-    utils.run_network(grid, inpgen=inpgen, t_sim=3000, dt_rec=1000, title="Test #1", id_list=id_list, train=False, save_figures=False, show_figures=True)
-    utils.run_network(grid, inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, train=True, plot_history=True, save_figures=True, show_figures=False)
+
+    recorder = utils.Recorder(grid, save_figures=False, show_figures=True)
+    id_list = recorder.run_network(inpgen=inpgen, t_sim=2000, dt_rec=None, title="Simulation #1", readout_size=20)
+    recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="Test #1", id_list=id_list, train=False)
+    recorder.plot_history = True
+    recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list)
 
     print(nest.GetKernelStatus('rng_seed'))
