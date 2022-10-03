@@ -716,7 +716,6 @@ namespace nest {
         P_.tau_f = rhs.P_.tau_f;
         P_.tau_rise = rhs.P_.tau_rise;
         P_.tau_decay = rhs.P_.tau_decay;
-        P_.c = rhs.P_.c;
         P_.eta = rhs.P_.eta;
         P_.use_stp = rhs.P_.use_stp;
 
@@ -753,8 +752,11 @@ namespace nest {
         const double old___h = V_.__h;
         V_.__h = timestep;
         recompute_internal_variables();
-        double u__tmp = P_.U - V_.__P__u__u * (P_.U - get_u());
-        double x__tmp = V_.__P__x__x * (get_x() - 1) + 1;
+        //double u__tmp = P_.U - V_.__P__u__u * (P_.U - get_u()); //# u(1-U)
+        double u__tmp = P_.U + V_.__P__u__u * get_u()*(1 - P_.U);  // as in the paper
+        //double x__tmp = 1 + V_.__P__x__x * (get_x() - 1);
+        double x__tmp = 1 + V_.__P__x__x * (get_x() - get_x() * get_u() - 1);  // as in the paper
+
         /* replace analytically solvable variables with precisely integrated values  */
         S_.u = u__tmp;
         S_.x = x__tmp;
