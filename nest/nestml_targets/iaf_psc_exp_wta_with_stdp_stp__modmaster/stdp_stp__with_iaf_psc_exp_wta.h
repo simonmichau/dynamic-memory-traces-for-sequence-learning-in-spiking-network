@@ -301,6 +301,7 @@ namespace nest {
                                const stdp_stp__with_iaf_psc_exp_wtaCommonSynapseProperties &cp);
 
         void recompute_internal_variables();
+        int get_thread();
 
 
     public:
@@ -571,6 +572,7 @@ namespace nest {
         void get_status(DictionaryDatum &d) const;
 
         void set_status(const DictionaryDatum &d, ConnectorModel &cm);
+        nest::normal_distribution normal_dev_; //!< random deviate generator
     };
 
 
@@ -677,6 +679,13 @@ namespace nest {
         V_.__P__x__x = std::exp((-(V_.__h)) / P_.tau_d); // as real
     }
 
+    template < typename targetidentifierT >
+    int stdp_stp__with_iaf_psc_exp_wta< targetidentifierT >::get_thread()
+    {
+        const thread tid = kernel().vp_manager.get_thread_id();
+        return tid;
+    }
+
 /**
  * constructor
 **/
@@ -684,9 +693,17 @@ namespace nest {
     stdp_stp__with_iaf_psc_exp_wta<targetidentifierT>::stdp_stp__with_iaf_psc_exp_wta() : ConnectionBase() {
         const double __resolution = nest::Time::get_resolution().get_ms();  // do not remove, this is necessary for the resolution() function
         P_.d = 1.0; // as ms
-        P_.U = 0.5; // as real
-        P_.tau_d = 110; // as ms
-        P_.tau_f = 5; // as ms
+        P_.U = ((0.5) + (0.25) * normal_dev_( nest::get_vp_specific_rng( get_thread() ) )); // as real
+        P_.tau_d = ((0.11) + (0.055) * normal_dev_( nest::get_vp_specific_rng( get_thread() ) )); // as s
+        P_.tau_f = ((0.005) + (0.0025) * normal_dev_( nest::get_vp_specific_rng( get_thread() ) )); // as s
+
+        P_.U = std::max(P_.U, 0.0); // U = numpy.maximum(self.U, 0.0)
+        P_.tau_d = std::max(P_.tau_d, __resolution/1000.0); // D = numpy.maximum(self.D, self.dt)
+        P_.tau_f = std::max(P_.tau_f, __resolution/1000.0); // F = numpy.maximum(self.F, self.dt)
+
+#ifdef DEBUG
+        std::cout << "U: " << P_.U << ", D: " << P_.tau_d << ", F: " << P_.tau_f << "\n" << std::flush;
+#endif
         P_.tau_rise = 2; // as ms
         P_.tau_decay = 20; // as ms
         P_.eta = 0.05; // as real
