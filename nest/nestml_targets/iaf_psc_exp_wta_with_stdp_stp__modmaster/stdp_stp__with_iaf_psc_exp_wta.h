@@ -518,8 +518,8 @@ namespace nest {
              *  NESTML generated onReceive code block for presynaptic port "pre_spikes" begins here!
             **/
             S_.w = get_u() * get_x();
-            S_.x -= get_x() * get_u();
-            S_.u += P_.U * (1 - get_u());
+            //S_.x -= get_x() * get_u();
+            //S_.u += P_.U * (1 - get_u());
 
             set_delay(P_.d);
             const long __delay_steps = nest::Time::delay_ms_to_steps(get_delay());
