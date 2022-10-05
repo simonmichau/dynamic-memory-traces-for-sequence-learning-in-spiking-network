@@ -546,6 +546,7 @@ private:
         std::vector<double> fixed_spiketimes;  // for toy model
         std::vector<double> presyn_u_t;  // vector of u_i(t) from presynaptic nodes
 
+        double rate_fraction;
         double eta;
         //double normalization_sum;
         double normalization_max;

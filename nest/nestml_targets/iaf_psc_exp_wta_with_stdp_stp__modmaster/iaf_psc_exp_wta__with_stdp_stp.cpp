@@ -61,6 +61,8 @@ namespace nest {
                 &iaf_psc_exp_wta__with_stdp_stp::get_decay_time_kernel__X__all_spikes);
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum,
                 &iaf_psc_exp_wta__with_stdp_stp::get_normalization_sum);
+        insert_(iaf_psc_exp_wta__with_stdp_stp_names::_rate_fraction,
+                &iaf_psc_exp_wta__with_stdp_stp::get_rate_fraction);
         // Add vector variables
     }
 }
