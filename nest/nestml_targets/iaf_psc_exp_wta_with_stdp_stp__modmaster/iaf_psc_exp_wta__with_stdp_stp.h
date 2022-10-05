@@ -58,6 +58,7 @@ namespace nest {
         const Name _presyn_ids("presyn_ids");  // for toy model, set manually
 
         const Name _normalization_sum("normalization_sum");
+        const Name _rate_fraction("rate_fraction");
     }
 }
 
@@ -197,6 +198,14 @@ public:
 
     inline void set_r(const long __v) {
         S_.r = __v;
+    }
+
+    inline double get_rate_fraction() const {
+        return V_.rate_fraction;
+    }
+
+    inline void set_rate_fraction(const double __v) {
+        V_.rate_fraction = __v;
     }
 
     inline double get_eta() const {
@@ -692,6 +701,7 @@ inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) con
     def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_r, get_r());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, get_V_m());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_eta, get_eta());
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rate_fraction, get_rate_fraction());
     def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_time_cnt, get_time_cnt());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes, get_rise_time_kernel__X__all_spikes());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes, get_decay_time_kernel__X__all_spikes());
@@ -727,6 +737,8 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_V_m, tmp_V_m);
     double tmp_eta = get_eta();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_eta, tmp_eta);
+    double tmp_rate_fraction = get_rate_fraction();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rate_fraction, tmp_rate_fraction);
 
     long tmp_time_cnt = get_time_cnt();
     updateValue<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_time_cnt, tmp_time_cnt);
@@ -767,6 +779,7 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     set_r(tmp_r);
     set_V_m(tmp_V_m);
     set_eta(tmp_eta);
+    set_rate_fraction(tmp_rate_fraction);
     set_time_cnt(tmp_time_cnt);
     set_rise_time_kernel__X__all_spikes(tmp_rise_time_kernel__X__all_spikes);
     set_decay_time_kernel__X__all_spikes(tmp_decay_time_kernel__X__all_spikes);
