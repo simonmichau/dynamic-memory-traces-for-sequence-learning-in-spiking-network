@@ -69,12 +69,12 @@ def enable_stdp(nc):
 
 
 def disable_stp(nc):
-    synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec")
+    synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta")
     synapses.set({'use_stp': int(False)})
 
 
 def enable_stp(nc):
-    synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec")
+    synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta")
     synapses.set({'use_stp': int(True)})
 
 
@@ -98,27 +98,27 @@ class Recorder:
         self.network = network
         # global IDs of neurons to record
         self.id_list = id_list
+        # number of recorded neurons
+        if self.id_list is not None:
+            self.n_rec_neurons = len(id_list)
+        else:
+            self.n_rec_neurons = 0
 
         self.create_plot = kwargs.get('create_plot', True)  # Note that the following plot/figure related parameters are redundant if False
         self.save_figures = kwargs.get('save_figures', False)
         self.show_figures = kwargs.get('show_figures', True)
         self.plot_history = kwargs.get('plot_history', False)
+        self.order_neurons = kwargs.get('order_neurons', True)
 
         # Recording time interval
         self.dt_rec = kwargs.get('dt_rec', None)
 
     def set(self, **kwargs):
         for key, value in kwargs.items():
-            pass
-            self.key = value
-
-    def get(self, arg):
-        pass
-        return self.arg
-
+            setattr(self, key, value)
 
     def run_network(self, id_list: list = None, node_collection=None, readout_size: int = None,
-                    inpgen=None, t_sim: float = 5000.0, title=None, train=True, dt_rec=None):
+                    inpgen=None, t_sim: float = 5000.0, title=None, train=True, dt_rec=None, order_neurons=True):
         """
         Simulates given **NodeCollection** for **t_sim** and plots the recorded spikes, membrane potential and presented
         patterns. Requires an **InputGenerator** object for pattern input generation.
@@ -145,11 +145,13 @@ class Recorder:
         else:  # Readout Mode 4
             node_collection = self.network.get_node_collections()
             id_list = list(self.network.get_node_collections().get('global_id'))
+        self.id_list = id_list
+        self.n_rec_neurons = len(self.id_list)
 
         # Create new multimeter and spikerecorder if none exist yet and connect them to the node_collection
         if self.network.multimeter is None:
             self.network.multimeter = nest.Create('multimeter')
-            self.network.multimeter.set(record_from=['V_m'])
+            self.network.multimeter.set(record_from=['V_m', 'rate_fraction'])
             nest.Connect(self.network.multimeter, node_collection)
         if self.network.spikerecorder is None:
             self.network.spikerecorder = nest.Create('spike_recorder')
@@ -179,6 +181,7 @@ class Recorder:
             # MULTIMETER
             dmm = self.network.multimeter.get()
             Vms = dmm["events"]["V_m"]
+            rend = dmm["events"]["rate_fraction"]
             ts = dmm["events"]["times"]
 
             # SPIKERECORDER
@@ -187,15 +190,27 @@ class Recorder:
             ts_ = dSD["times"]
 
             # NOISERECORDER
-            nr = inpgen.noiserecorder.get("events")
-            evs__ = nr["senders"]
-            ts__ = nr["times"]
+            if inpgen.use_noise:
+                nr = inpgen.noiserecorder.get("events")
+                evs__ = nr["senders"]
+                ts__ = nr["times"]
 
-            # get the indices after t_sim_start
+            # filter the indices after t_sim_start
             t_sim_start = nest.biological_time - t_sim
             multimeter_time_window = np.where(ts > t_sim_start)[0]
             spikerecorder_time_window = np.where(ts_ > t_sim_start)[0]
-            noiserecorder_time_window = np.where(ts__ > t_sim_start)[0]
+            if inpgen.use_noise:
+                noiserecorder_time_window = np.where(ts__ > t_sim_start)[0]
+
+            # order the neurons by their mean activation time
+            if order_neurons:
+                print("Ordering neurons...")
+                p = np.array(inpgen.phase_times)
+                I = np.array(inpgen.pattern_trace)
+                t = np.array(inpgen.next_pattern_length)
+                neuron_order, _, _ = self.get_order(p, I, t, rend, tstart=int(t_sim_start), nsteps=int(t_sim))
+                print(neuron_order)
+                print("Done ordering neurons.")
 
             n_senders = len(np.unique(dmm["events"]["senders"]))
             for idx, neuron in enumerate(np.unique(dmm["events"]["senders"])):  # iterate over all sender neurons
@@ -244,13 +259,22 @@ class Recorder:
                 run_time = time.time() - start_time_2
                 print("EPSPs and weights complete in %s" % run_time)
 
+            # SPIKES FROM PARROTS (NOISE + PATTERNS)
+            if inpgen.use_noise:
+                parrots_start_id = min(evs__)  # smallest id of a parrot neuron
+                for parrot in np.unique(nr["senders"]):
+                    indices = np.where(nr["senders"] == parrot)[0]
+                    if not self.plot_history:  # remove all indices from outside of noiserecorder_time_window
+                        indices = [i for i in indices if i in noiserecorder_time_window]
+                    axes[4].plot(ts__[indices], evs__[indices]-parrots_start_id, ".", color='black')
+
             # PRESENTED PATTERNS
             time_shift = nest.biological_time - t_sim
             if inpgen is not None:
                 st = inpgen.spiketrain
                 for i in range(len(st)):
                     # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
-                    axes[4].plot(st[i], [i] * len(st[i]), ".", color='orange')
+                    axes[4].plot(st[i], [i] * len(st[i]), ".", color='red')
                 if not self.plot_history:
                     axes[4].set_xlim(time_shift, nest.biological_time)
 
@@ -260,7 +284,7 @@ class Recorder:
             axes[1].set_ylabel("Spike ID")
             axes[2].set_title("EPSP traces")
             # axes[2].legend()
-            axes[3].set_title("Weights")
+            axes[3].set_title("Recurrent weights")
             axes[3].set_ylabel("w")
             # axes[3].legend()
             axes[4].set_ylabel("Input channels")
@@ -286,9 +310,9 @@ class Recorder:
         print("Recording step")
         if self.id_list is not None:  # limit recorded nodes to the ones from id_list
             target = nest.NodeCollection(self.id_list)
-            inp_conns = nest.GetConnections(synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec", target=target)
+            inp_conns = nest.GetConnections(synapse_model="stdp_stp__with_iaf_psc_exp_wta", target=target)
         else:
-            inp_conns = nest.GetConnections(synapse_model="stdp_stp__with_iaf_psc_exp_wta_rec")
+            inp_conns = nest.GetConnections(synapse_model="stdp_stp__with_iaf_psc_exp_wta")
         postsyn_weights = nest.GetStatus(self.network.get_node_collections(), 'weights')
         postsyn_epsps = nest.GetStatus(self.network.get_node_collections(), 'epsp_trace')
 
@@ -344,6 +368,55 @@ class Recorder:
                 print("Step %s/%s complete. Time passed since simulation start: %s" % (
                 t_, int(t / dt_rec), nest.biological_time))
             self.record_variables_step()
+
+
+    def get_order(self, p, I, t, r_fracs, tstart, nsteps):
+        """
+        :param p: time points of pattern phases (start and stop point)
+            [e.g., [0, 340, 640, 957, 1257, 1671, 1971, 2376, 2676]]
+        :param I: unfolded pattern ids, or -1 during noise phase - arrays of size nsteps
+        :param t: same dim as p; duration of each pattern phase, twice
+        :param r: rate fractions for all neurons in all WTA
+        :param tstart:
+        :param nsteps:
+        :return:
+        """
+        # clip inputs to correct length
+        filtered_indices = np.where((tstart <= p) & (p <= tstart + nsteps))
+        p = p[filtered_indices]
+        t = t[filtered_indices]
+        I = I[tstart:tstart+nsteps]
+
+        # unflatten rate fractions
+        r = np.empty((0, len(self.id_list)), int)
+        for i in np.arange(len(self.id_list)*tstart, len(r_fracs), len(self.id_list)):
+            r = np.append(r, np.array([r_fracs[i:i+len(self.id_list)]]), axis=0)
+
+        pt = 0
+        order = np.arange(self.n_rec_neurons)
+        times = np.zeros(order.shape)
+        if self.order_neurons:
+            for pti, ptt in enumerate(p[::-1]):  # iterate over p in reverse
+                pt = ptt - tstart
+                pi = np.max(I[pt])  #
+                pl = t[-pti-1]  # pattern length / duration
+                if pi < 0:
+                    continue
+                #pl = int(self.tPattern[pi]/self.dt)
+                if pt+pl <= nsteps:
+                    break
+            Tord = np.arange(pt, pt+pl).astype(int)
+            tmp = np.sum(r[Tord, :].T*np.exp(np.arange(pl)/(pl/(2*np.pi))*1j), axis=1)
+            tmp /= np.sum(r[Tord, :].T, axis=1)
+            angles = np.angle(tmp)
+            angles[angles<0] += 2*np.pi
+            weighted_rates_max_time = angles/(2*np.pi/pl)
+            assert(weighted_rates_max_time.shape == (self.n_rec_neurons,))
+            order = np.argsort(weighted_rates_max_time)
+            times = pt+weighted_rates_max_time[order]
+        else:
+            Tord = np.arange(pt, pt).astype(int)
+        return order, times, Tord
 
 
 def generate_nest_code(neuron_model: str, synapse_model: str, target="nestml_target"):
