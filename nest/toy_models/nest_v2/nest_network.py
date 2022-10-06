@@ -109,10 +109,20 @@ class InputGenerator(object):
         # Tuple storing the sequence index and the index of the current pattern
         self.current_pattern_index = [0, 0]
 
+        # Parameters used for `get_order`
+        # List of time points where the phase changes (noise, patternA, patternB, ...)
+        self.phase_times = [0]  # TODO
+        # List of length [duration] containing the index of the pattern for each time step (or -1 if noise)
+        self.pattern_trace = []  # TODO
+        self.next_pattern_length = [self.t_pattern[0]]  # TODO
+
         # NodeCollection of spike_generators
         self.spike_generators = None
-        # NodeCollection of parrot_neurons used for poisson noise
-        self.parrots = None
+        # NodeCollection of inhomogeneous_poisson_generators
+        self.poisson_generators = None
+        # NodeCollection of parrot_neurons used for poisson noise and input patterns
+        self.parrots = nest.Create('parrot_neuron', self.n)
+        self.connect_parrots()  # connect parrots to network with stdp and w/o stp
 
         # Spikerecorder for poisson noise
         self.noiserecorder = None
@@ -127,13 +137,7 @@ class InputGenerator(object):
         # self.visualize_spiketrain(self.pattern_list[0], 500)
         # self.visualize_spiketrain(self.pattern_list[1], 500)
 
-    def generate_noise(self) -> None:
-        """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
-        # Create n poisson input channels with firing rate r_noise
-        poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.r_noise})
-        # Create n parrot_neuron and connect one poisson generator to each of it
-        self.parrots = nest.Create('parrot_neuron', self.n)
-        nest.Connect(poisson_gens, self.parrots, 'one_to_one')
+    def connect_parrots(self):
         # Connect parrots to target network
         conn_dict = {
             'rule': 'pairwise_bernoulli',
@@ -141,9 +145,21 @@ class InputGenerator(object):
             'allow_autapses': False,
         }
         syn_dict = {"synapse_model": _SYNAPSE_MODEL_NAME,
-                    'delay': 1.
+                    'delay': 1.,
+                    'U': 0.5,
+                    'u': 0.5,
+                    'use_stp': 0  # TODO for some reason, input synapses are not dynamic.
                     }
         nest.Connect(self.parrots, self.target_network.get_node_collections(), conn_dict, syn_dict)
+
+    def generate_noise(self) -> None:
+        """Creates and connects poisson generators to target network to stimulate it with poisson noise."""
+        # Create n poisson input channels with firing rate r_noise
+        #poisson_gens = nest.Create('poisson_generator', self.n, params={'rate': self.r_noise})
+        self.poisson_generators = nest.Create('inhomogeneous_poisson_generator', self.n)
+        # Connect one poisson generator to each parrot neuron
+        nest.Connect(self.poisson_generators, self.parrots, 'one_to_one')
+
         # Update connection weights to random values
         utils.randomize_outgoing_connections(self.parrots)
 
@@ -188,12 +204,15 @@ class InputGenerator(object):
                 'u': 0.5,
                 'use_stp': 0  # TODO for some reason, input synapses are not dynamic.
             }
-            nest.Connect(self.spike_generators, self.target_network.get_node_collections(), conn_dict,
-                         syn_dict)
+            #nest.Connect(self.spike_generators, self.target_network.get_node_collections(), conn_dict,
+            #             syn_dict)
+            nest.Connect(self.spike_generators, self.parrots, 'one_to_one')
 
             # Randomize connection weights
             utils.randomize_outgoing_connections(self.spike_generators)
 
+        noise_rate_times = []
+        noise_rate_values = []
         # generate a list of spiketrains that alternate between noise phase and pattern presentation phase
         t = nest.biological_time
         spiketrain_list = [[]] * self.n  # list to store the spiketrain of each input channel
@@ -201,11 +220,27 @@ class InputGenerator(object):
         while t < nest.biological_time + duration:
             # Randomly draw the duration of the noise phase
             t_noise_phase = self.t_noise_range[0] + np.random.rand()*(self.t_noise_range[1]-self.t_noise_range[0])
+            t_noise_phase = np.round(t_noise_phase, decimals=0)
+
+            # Get noise and pattern times for poisson gens
+            noise_rate_times += [t + nest.resolution]
+            noise_rate_values += [self.r_noise]  # noise rate during noise phase
+            noise_rate_times += [t+t_noise_phase]
+            noise_rate_values += [self.r_noise_pattern]  # noise rate during pattern presentation
 
             # append pattern spike times to spiketrain list
             for i in range(self.n):  # iterate over input channels
                 st = np.add(t+t_noise_phase, self.pattern_list[current_pattern_id][i])
                 spiketrain_list[i] = spiketrain_list[i] + st.tolist()
+
+            # Append phase times (for get_order)
+            self.phase_times += [int(t+t_noise_phase), int(t+t_noise_phase + self.t_pattern[current_pattern_id])]
+            # Append next pattern length (for get_order)
+            self.next_pattern_length += [int(self.t_pattern[current_pattern_id]), int(self.t_pattern[current_pattern_id])]
+            # Append pattern trace (for get_order)
+            self.pattern_trace += [-1]*int(t_noise_phase)  # append noise id
+            self.pattern_trace += [current_pattern_id]*int(self.t_pattern[current_pattern_id])  # append input pattern id
+
             t += t_noise_phase + self.t_pattern[current_pattern_id]
 
             # Update the pattern to present next round
@@ -220,6 +255,11 @@ class InputGenerator(object):
         #self.spiketrain = spiketrain_list
         for i in range(len(self.spiketrain)):
             self.spiketrain[i] = self.spiketrain[i] + spiketrain_list[i]
+            self.spiketrain[i] = np.unique(self.spiketrain[i]).tolist()  # avoid redundant spike times
+
+        # Set noise and pattern times for poisson gens
+        if self.use_noise:
+            self.poisson_generators.set({'rate_times': noise_rate_times, 'rate_values': noise_rate_values})
 
         # Assign spiketrain_list to spike_generators
         for i in range(self.n):
@@ -527,17 +567,16 @@ if __name__ == '__main__':
     nest.SetKernelStatus({'resolution': 1., 'use_compressed_spikes': False})  # no touch!
 
     # TOY EXAMPLE
-    _SYNAPSE_MODEL_NAME, weight_recorder = utils.init_weight_recorder(_SYNAPSE_MODEL_NAME)
+    grid = Network(grid_shape=(10, 5), k_min=2, k_max=10, n_inputs=100)
+    inpgen = InputGenerator(grid, r_noise=5, r_input=3, r_noise_pattern=4, use_noise=True, t_noise_range=[300.0, 500.0],
+                            n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]])
 
-    grid = Network(grid_shape=(5, 5), k_min=2, k_max=5, n_inputs=50)
-    inpgen = InputGenerator(grid, r_noise=2, r_input=3, n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]], use_noise=True, t_noise_range=[300.0, 500.0])
-
-    utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME  # important
-
-    recorder = utils.Recorder(grid, save_figures=False, show_figures=True)
-    id_list = recorder.run_network(inpgen=inpgen, t_sim=2000, dt_rec=None, title="Simulation #1", readout_size=20)
-    recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="Test #1", id_list=id_list, train=False)
-    recorder.plot_history = True
-    recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list)
+    recorder = utils.Recorder(grid, save_figures=False, show_figures=True, create_plot=False)
+    recorder.set(create_plot=False)
+    id_list = recorder.run_network(inpgen=inpgen, t_sim=100000, dt_rec=None, title="Simulation #1") #readout_size=30
+    recorder.set(create_plot=True)
+    recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="Test #1", id_list=id_list, train=False, order_neurons=True)
+    recorder.set(plot_history=True)
+    recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, order_neurons=False)
 
     print(nest.GetKernelStatus('rng_seed'))
