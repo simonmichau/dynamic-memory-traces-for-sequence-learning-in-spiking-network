@@ -254,14 +254,6 @@ class Recorder:
                 if not self.plot_history:
                     axes[4].set_xlim(time_shift, nest.biological_time)
 
-            # NOISE
-            for parrot in np.unique(nr["senders"]):
-                indices = np.where(nr["senders"] == parrot)[0]
-                if not self.plot_history:  # remove all indices from outside of noiserecorder_time_window
-                    indices = [i for i in indices if i in noiserecorder_time_window]
-                axes[4].plot(ts__[indices], evs__[indices], ".", color='blue')
-
-
             axes[0].set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
             axes[0].set_ylabel("Membrane potential (mV)")
             axes[1].set_title("Network spike events")

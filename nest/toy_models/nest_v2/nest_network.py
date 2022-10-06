@@ -84,10 +84,12 @@ class InputGenerator(object):
         self.n = target_network.n_inputs
         # Target network
         self.target_network = target_network
-        # Poisson firing rate of the noise (in Hz)
-        self.r_noise = kwds.get('r_noise', 2)
+        # Poisson firing rate of the noise during pattern presentation (in Hz)
+        self.r_noise_pattern = kwds.get('r_noise_pattern', 4)
+        # Standard poisson firing rate of the noise (in Hz)
+        self.r_noise = kwds.get('r_noise', 5)  # poisson noise rate during pattern presentation
         # Input firing rate (in Hz)
-        self.r_input = kwds.get('r_input', 5)
+        self.r_input = kwds.get('r_input', 3)
         # Number of patterns
         self.n_patterns = kwds.get('n_patterns', 3)
         # Pattern sequences (contains lists of pattern sequences; their presentation order is determined [elsewhere])
