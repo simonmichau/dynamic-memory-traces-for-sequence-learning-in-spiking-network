@@ -1,5 +1,7 @@
 import itertools
 import os
+import pprint
+import tqdm
 import random
 import time
 import numpy as np
@@ -60,22 +62,22 @@ def randomize_outgoing_connections(nc):
 
 def disable_stdp(nc):
     """Disables STDP for a given NodeCollection"""
-    nc.set({'use_stdp': int(False)})
+    nc.set({'use_stdp': float(False)})
 
 
 def enable_stdp(nc):
     """Disables STDP for a given NodeCollection"""
-    nc.set({'use_stdp': int(True)})
+    nc.set({'use_stdp': float(True)})
 
 
 def disable_stp(nc):
     synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta")
-    synapses.set({'use_stp': int(False)})
+    synapses.set({'use_stp': float(False)})
 
 
 def enable_stp(nc):
     synapses = nest.GetConnections(nc, synapse_model="stdp_stp__with_iaf_psc_exp_wta")
-    synapses.set({'use_stp': int(True)})
+    synapses.set({'use_stp': float(True)})
 
 
 def update_presyn_ids(network):
@@ -129,6 +131,8 @@ class Recorder:
             3. "Random k": k nodes are randomly sampled from the network and measured
             4. "All": Measure all nodes in network
         """
+        NUMBER_OF_SPIKES = {}
+
         # Determine NodeCollection to record from (and also id_list for return value)
         if id_list is not None:  # Readout Mode 1
             node_collection = nest.NodeCollection(id_list)
@@ -174,9 +178,9 @@ class Recorder:
             print("Plotting...")
             start_time = time.time()
             # Initialize plot
-            fig, axes = plt.subplots(5, 1, sharex=not self.plot_history)  # only sync x axis if not the whole history is observed
-            fig.set_figwidth(10)
-            fig.set_figheight(12)
+            fig, axes = plt.subplots(3, 1, sharex=not self.plot_history)  # only sync x axis if not the whole history is observed
+            fig.set_figwidth(15)
+            fig.set_figheight(13)
 
             # MULTIMETER
             dmm = self.network.multimeter.get()
@@ -211,84 +215,102 @@ class Recorder:
                 neuron_order, _, _ = self.get_order(p, I, t, rend, tstart=int(t_sim_start), nsteps=int(t_sim))
                 print(neuron_order)
                 print("Done ordering neurons.")
+            else:
+                neuron_order = np.unique(dmm["events"]["senders"])
 
             n_senders = len(np.unique(dmm["events"]["senders"]))
-            for idx, neuron in enumerate(np.unique(dmm["events"]["senders"])):  # iterate over all sender neurons
-                print("%s/%s" % (idx, n_senders))  # , end="\r"
+            all_senders = np.unique(dmm["events"]["senders"])
+
+            for idx, neuron_order_idx in tqdm.tqdm(enumerate(neuron_order), desc="Sorting neurons:", total=len(neuron_order)): #enumerate(np.unique(dmm["events"]["senders"])):  # iterate over all sender neurons
+                # print("%s/%s" % (idx, n_senders), end="\r")  # , end="\r"
                 src_gids = np.unique(dmm["events"]["senders"]).tolist()
                 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
+                neuron_gid = all_senders[neuron_order_idx]
                 start_time_1 = time.time()
+
                 # MEMBRANE POTENTIAL
-                indices = np.where(dmm["events"]["senders"] == neuron)[0]  # get the indices of events where 'neuron' was the sender
-                if not self.plot_history:  # remove all indices from outside of multimeter_time_window
+                #if 0: # plot_membrane_potential
+                indices = np.where(dmm["events"]["senders"] == neuron_gid)[0]  # get the indices of events where 'neuron' was the sender
+                if not self.plot_history and idx < 20:  # remove all indices from outside of multimeter_time_window
                     indices = [i for i in indices if i in multimeter_time_window]
-                axes[0].plot(ts[indices], Vms[indices], label=f'neuron: {neuron}')  # plot the membrane potential of 'neuron'
+                axes[0].plot(ts[indices], Vms[indices], label=f'neuron: {neuron_gid}')  # plot the membrane potential of 'neuron'
 
                 # SPIKES
-                indices = np.where(dSD["senders"] == neuron)[0]
+                indices = np.where(dSD["senders"] == neuron_gid)[0]
                 if not self.plot_history:  # remove all indices from outside of spikerecorder_time_window
                     indices = [i for i in indices if i in spikerecorder_time_window]
-                axes[1].plot(ts_[indices], evs[indices], ".")
+                # axes[1].plot(ts_[indices], evs[indices], ".", ms=1)
+                axes[1].plot(ts_[indices], [idx] * len(ts_[indices]), ".", ms=1)
+
+                neuron_wta_pos = self.network.get_pos_by_id(neuron_gid)
+                if neuron_wta_pos not in NUMBER_OF_SPIKES:
+                    if neuron_wta_pos is None:
+                        print(f"Neuron {neuron_gid} is in WTA with invalid position", neuron_gid)
+                        assert neuron_wta_pos is not None, f"Neuron {neuron_gid} is in WTA with invalid position"
+                    NUMBER_OF_SPIKES[neuron_wta_pos] = 0
+                NUMBER_OF_SPIKES[neuron_wta_pos] += len(ts_[indices])
+
                 run_time = time.time() - start_time_1
-                print("Membrane potential and Spikes complete in %s" % run_time)
+                #print("Membrane potential and Spikes complete in %s" % run_time)
 
                 start_time_2 = time.time()
-                # EPSPs
-                for src_idx, src in enumerate(src_gids):
-                    c = colors[src_idx%len(colors)]
-                    filtered_epsps_dict = {'t': [], 'epsp': []}
-                    for t, src_, tgt_, epsp in self.network.epsp_recorder:
-                        if src_ == src and tgt_ == neuron: # and t >= t_sim_start
-                            filtered_epsps_dict['t'].append(t)
-                            filtered_epsps_dict['epsp'].append(epsp)
-                    #if len(filtered_epsps):
-                    axes[2].plot(filtered_epsps_dict['t'], filtered_epsps_dict['epsp'], color=c)  # label=f'{src} -> {neuron}'
+                if 0: # plot_epsp and plot_weights
+                    # EPSPs
+                    for src_idx, src in enumerate(src_gids):
+                        c = colors[src_idx%len(colors)]
+                        filtered_epsps_dict = {'t': [], 'epsp': []}
+                        for t, src_, tgt_, epsp in self.network.epsp_recorder:
+                            if src_ == src and tgt_ == neuron: # and t >= t_sim_start
+                                filtered_epsps_dict['t'].append(t)
+                                filtered_epsps_dict['epsp'].append(epsp)
+                        #if len(filtered_epsps):
+                        axes[2].plot(filtered_epsps_dict['t'], filtered_epsps_dict['epsp'], color=c)  # label=f'{src} -> {neuron}'
 
-                # WEIGHTS
-                for src_idx, src in enumerate(src_gids):
-                    c = colors[src_idx%len(colors)]
-                    filtered_weights_dict = {'t': [], 'w': []}
-                    for t, src_, tgt_, w in self.network.weight_recorder:
-                        if src_ == src and tgt_ == neuron: # and t >= t_sim_start
-                            filtered_weights_dict['t'].append(t)
-                            filtered_weights_dict['w'].append(w)
-                    #if len(filtered_weights):
-                    axes[3].plot(filtered_weights_dict['t'], filtered_weights_dict['w'], color=c)  # label=f'{src} -> {neuron}'
+                    # WEIGHTS
+                    for src_idx, src in enumerate(src_gids):
+                        c = colors[src_idx%len(colors)]
+                        filtered_weights_dict = {'t': [], 'w': []}
+                        for t, src_, tgt_, w in self.network.weight_recorder:
+                            if src_ == src and tgt_ == neuron: # and t >= t_sim_start
+                                filtered_weights_dict['t'].append(t)
+                                filtered_weights_dict['w'].append(w)
+                        #if len(filtered_weights):
+                        axes[3].plot(filtered_weights_dict['t'], filtered_weights_dict['w'], color=c)  # label=f'{src} -> {neuron}'
 
                 run_time = time.time() - start_time_2
-                print("EPSPs and weights complete in %s" % run_time)
+                #print("EPSPs and weights complete in %s" % run_time)
 
-            # SPIKES FROM PARROTS (NOISE + PATTERNS)
+            # SPIKES FROM PARROTS (NOISE + PATTERNS)  # TODO: set all axes[0] back to axes[4] here
             if inpgen.use_noise:
                 parrots_start_id = min(evs__)  # smallest id of a parrot neuron
                 for parrot in np.unique(nr["senders"]):
                     indices = np.where(nr["senders"] == parrot)[0]
                     if not self.plot_history:  # remove all indices from outside of noiserecorder_time_window
                         indices = [i for i in indices if i in noiserecorder_time_window]
-                    axes[4].plot(ts__[indices], evs__[indices]-parrots_start_id, ".", color='black')
+                    axes[2].plot(ts__[indices], evs__[indices]-parrots_start_id, ".", color='black')
 
-            # PRESENTED PATTERNS
+            # PRESENTED PATTERNS # TODO: set all axes[0] back to axes[4] here
             time_shift = nest.biological_time - t_sim
             if inpgen is not None:
                 st = inpgen.spiketrain
                 for i in range(len(st)):
                     # ax3.scatter(np.add(time_shift, st[i]), [i] * len(st[i]), color=(i / (len(st)), 0.0, i / (len(st))))
-                    axes[4].plot(st[i], [i] * len(st[i]), ".", color='red')
+                    axes[2].plot(st[i], [i] * len(st[i]), ".", color='red')
                 if not self.plot_history:
-                    axes[4].set_xlim(time_shift, nest.biological_time)
+                    axes[2].set_xlim(time_shift, nest.biological_time)
 
             axes[0].set_title("t_sim= %d, t_start= %d" % (t_sim, (nest.biological_time - t_sim)))
             axes[0].set_ylabel("Membrane potential (mV)")
             axes[1].set_title("Network spike events")
-            axes[1].set_ylabel("Spike ID")
-            axes[2].set_title("EPSP traces")
+            #axes[1].set_ylabel("Spike ID")
+            #axes[2].set_title("EPSP traces")
             # axes[2].legend()
-            axes[3].set_title("Recurrent weights")
-            axes[3].set_ylabel("w")
+            #axes[3].set_title("Recurrent weights")
+            #axes[3].set_ylabel("w")
             # axes[3].legend()
-            axes[4].set_ylabel("Input channels")
-            axes[4].set_xlabel("time (ms)")
+            #axes[4].set_ylabel("Input channels")
+            #axes[4].set_xlabel("time (ms)")
             if title is not None:
                 fig.suptitle(title, fontsize=20)
 
@@ -300,6 +322,14 @@ class Recorder:
                 plt.savefig("simulation_%ds.png" % int(time.time()))
             if self.show_figures:
                 plt.show()
+
+            if 1: #plot_total_spike_activity
+                fig, axes = plt.subplots(1, 1)
+
+            print("#############################")
+            print("#  Number of spikes: ", pprint.PrettyPrinter().pprint(NUMBER_OF_SPIKES))
+            print("#############################")
+
         self.id_list = id_list
         return id_list
 
@@ -369,7 +399,6 @@ class Recorder:
                 t_, int(t / dt_rec), nest.biological_time))
             self.record_variables_step()
 
-
     def get_order(self, p, I, t, r_fracs, tstart, nsteps):
         """
         :param p: time points of pattern phases (start and stop point)
@@ -391,6 +420,9 @@ class Recorder:
         r = np.empty((0, len(self.id_list)), int)
         for i in np.arange(len(self.id_list)*tstart, len(r_fracs), len(self.id_list)):
             r = np.append(r, np.array([r_fracs[i:i+len(self.id_list)]]), axis=0)
+        # eliminate initial infinity line
+        r[1, :] = r[2, :]
+        r[0, :] = r[2, :]
 
         pt = 0
         order = np.arange(self.n_rec_neurons)
@@ -417,6 +449,57 @@ class Recorder:
         else:
             Tord = np.arange(pt, pt).astype(int)
         return order, times, Tord
+
+    # def get_order(self, p, I, t, r_fracs, tstart, nsteps):
+    #     """
+    #     :param p: time points of pattern phases (start and stop point)
+    #         [e.g., [0, 340, 640, 957, 1257, 1671, 1971, 2376, 2676]]
+    #     :param I: unfolded pattern ids, or -1 during noise phase - arrays of size nsteps
+    #     :param t: same dim as p; duration of each pattern phase, twice
+    #     :param r: rate fractions for all neurons in all WTA
+    #     :param tstart:
+    #     :param nsteps:
+    #     :return:
+    #     """
+    #     # clip inputs to correct length
+    #     filtered_indices = np.where((tstart <= p) & (p <= tstart + nsteps))
+    #     p = p[filtered_indices]
+    #     t = t[filtered_indices]
+    #     I = I[tstart:tstart+nsteps]
+    #
+    #     # unflatten rate fractions
+    #     rate_fractions = np.empty((0, len(self.id_list)), int)
+    #     for i in np.arange(len(self.id_list)*tstart, len(r_fracs), len(self.id_list)):
+    #         rate_fractions = np.append(rate_fractions, np.array([r_fracs[i:i+len(self.id_list)]]), axis=0)
+    #     # eliminate initial infinity line
+    #     rate_fractions[1, :] = rate_fractions[2, :]
+    #     rate_fractions[0, :] = rate_fractions[2, :]
+    #
+    #     pattern_time = 0
+    #     order = np.arange(self.n_rec_neurons)  # array to be ordered, should correspond to global_ids?
+    #     times = np.zeros(order.shape)
+    #     if self.order_neurons:
+    #         for pti, ptt in enumerate(p[::-1]):  # iterate over p in reverse
+    #             pattern_time = ptt - tstart
+    #             pattern_idx = np.max(I[pattern_time])  #
+    #             pattern_len = t[-pti-1]  # pattern length / duration
+    #             if pattern_idx < 0:
+    #                 continue
+    #             #pl = int(self.tPattern[pi]/self.dt)
+    #             if pattern_time+pattern_len <= nsteps:
+    #                 break
+    #         Tord = np.arange(pattern_time, pattern_time + pattern_len).astype(int)
+    #         tmp = np.sum(rate_fractions[Tord, :].T * np.exp(np.arange(pattern_len)/(pattern_len/(2*np.pi))*1j), axis=1)
+    #         tmp /= np.sum(rate_fractions[Tord, :].T, axis=1)
+    #         angles = np.angle(tmp)
+    #         angles[angles<0] += 2*np.pi
+    #         weighted_rates_max_time = angles/(2*np.pi/pattern_len)
+    #         assert(weighted_rates_max_time.shape == (self.n_rec_neurons,))
+    #         order = np.argsort(weighted_rates_max_time)
+    #         times = pattern_time+weighted_rates_max_time[order]
+    #     else:
+    #         Tord = np.arange(pattern_time, pattern_time).astype(int)
+    #     return order, times, Tord
 
 
 def generate_nest_code(neuron_model: str, synapse_model: str, target="nestml_target"):

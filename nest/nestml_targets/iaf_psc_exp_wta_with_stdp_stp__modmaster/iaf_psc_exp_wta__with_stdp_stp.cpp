@@ -111,8 +111,21 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp() : ArchivingNode
     S_.rise_time_kernel__X__all_spikes = 0; // as real
     S_.decay_time_kernel__X__all_spikes = 0; // as real
 
+    V_.rate_fraction = 0.0;
     V_.eta = 0.05;
     V_.normalization_max = -1e12;
+//    std::fill(V_.localWeights_Wk.begin(), V_.localWeights_Wk.end(), );
+//    nest::uniform_distribution uniform_dev_;
+    for (auto& it : V_.localWeights_Wk)
+    {
+        std::random_device rd;
+        std::mt19937 e2(rd());
+        std::uniform_real_distribution<> dist(0, 1);
+        double tmp  = dist(e2);
+
+        it = -std::log(dist(e2));
+    }
+
     std::fill(V_.Q.begin(), V_.Q.end(), 1);
     std::fill(V_.S.begin(), V_.S.end(), 0);
     recordablesMap_.create();
@@ -153,6 +166,9 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp(const iaf_psc_exp
     V_.Q = __n.V_.Q;
     V_.S = __n.V_.S;
     V_.eta = __n.V_.eta;
+    V_.rate_fraction = __n.V_.rate_fraction;
+    V_.localWeights_Wk = __n.V_.localWeights_Wk;
+    V_.preSynWeights = __n.V_.preSynWeights;
     n_incoming_ = __n.n_incoming_;
     max_delay_ = __n.max_delay_;
     last_spike_ = __n.last_spike_;
@@ -399,6 +415,7 @@ void iaf_psc_exp_wta__with_stdp_stp::handle(nest::SpikeEvent &e) // happens befo
 #ifdef DEBUG
     std::cout << e.get_sender_node_id() << std::flush;
 #endif
+
 #ifdef DEBUG
     std::cout << "\n\t\tweight: " << weight
         << "\n\t\t sender id: " << e.get_sender_node_id()

@@ -307,9 +307,6 @@ class InputGenerator(object):
 class Network(object):
     def __init__(self, **kwds):
         # FUNCTIONAL VARIABLES
-        # Rise and decay time constant for EPSP (in ms)
-        self.tau_rise = kwds.get('tau_rise', 2)  # TODO: remove or make work again
-        self.tau_decay = kwds.get('tau_decay', 20)  # TODO: remove or make work again
         # Dimensions of the grid of WTA circuits
         self.grid_shape = kwds.get('grid_shape', (10, 5))
         self.n, self.m = self.grid_shape
@@ -320,8 +317,6 @@ class Network(object):
         self.n_inputs = kwds.get('n_inputs', 50)
         # parameter lambda of exponential distance distribution
         self.lam = kwds.get('lam', 0.088)
-        # simulation time (in ms)
-        self.t_sim = kwds.get('t_sim', 2000.0)  # TODO: remove or make work again
         # List containing all WTA circuits
         self.circuits = []
         # NodeCollection containing all neurons of the grid
@@ -373,6 +368,13 @@ class Network(object):
             if node_id in i.nc.get()['global_id']:
                 return i.get_pos()
 
+    def get_wta_by_id(self, node_id: int) -> Optional[tuple]:
+        """Returns the position of the WTA circuit which contains the node with the given ID"""
+        for i in self.circuits:
+            if node_id in i.nc.get()['global_id']:
+                return i
+        raise RuntimeError(f"Neuron {node_id} not in any circuit?")
+
     def refresh_neurons(self):
         """Refreshes self.neurons based on self.circuits"""
         self.neuron_collection = self.get_node_collections()
@@ -388,8 +390,9 @@ class Network(object):
             for n in range(self.n):
                 K = random.randint(self.k_min, self.k_max)
                 nc = nest.Create(_NEURON_MODEL_NAME, K,
-                                 {'use_variance_tracking': int(shared_params.use_variance_tracking), 'use_stdp': int(self.use_stdp)})
+                                 {'use_variance_tracking': int(shared_params.use_variance_tracking), 'use_stdp': int(self.use_stdp), 'rate_fraction': 1./K})
                 circuit_list.append(WTACircuit(nc, (n, m)))
+                print(f"Position and size of WTA circuit: ({n}, {m}) - {K}")
         self.circuits = circuit_list
         self.refresh_neurons()
         return circuit_list
@@ -563,20 +566,27 @@ if __name__ == '__main__':
     print(_NEURON_MODEL_NAME, " installed: ", _NEURON_MODEL_NAME in nest.node_models)
     nest.resolution = 1.
     nest.set_verbosity('M_ERROR')
-    nest.print_time = True
-    nest.SetKernelStatus({'resolution': 1., 'use_compressed_spikes': False})  # no touch!
+    nest.print_time = False
+    nest.SetKernelStatus({'resolution': 1.,
+                          'use_compressed_spikes': False,
+                          "local_num_threads": 4,
+                          })  # no touch!
+
 
     # TOY EXAMPLE
-    grid = Network(grid_shape=(10, 5), k_min=2, k_max=10, n_inputs=100)
+    grid = Network(grid_shape=(2, 3), k_min=2, k_max=2, n_inputs=100)
+
+    print(grid.get_node_collections().rate_fraction)
     inpgen = InputGenerator(grid, r_noise=5, r_input=3, r_noise_pattern=4, use_noise=True, t_noise_range=[300.0, 500.0],
                             n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]])
 
     recorder = utils.Recorder(grid, save_figures=False, show_figures=True, create_plot=False)
     recorder.set(create_plot=False)
-    id_list = recorder.run_network(inpgen=inpgen, t_sim=100000, dt_rec=None, title="Simulation #1") #readout_size=30
+    # id_list = recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="Simulation #1") #readout_size=30
     recorder.set(create_plot=True)
-    recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="Test #1", id_list=id_list, train=False, order_neurons=True)
+    recorder.run_network(inpgen=inpgen, t_sim=1000, dt_rec=None, title="Test #1", train=False, order_neurons=True)
     recorder.set(plot_history=True)
-    recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, order_neurons=False)
+    exit()
+    recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, order_neurons=True)
 
     print(nest.GetKernelStatus('rng_seed'))

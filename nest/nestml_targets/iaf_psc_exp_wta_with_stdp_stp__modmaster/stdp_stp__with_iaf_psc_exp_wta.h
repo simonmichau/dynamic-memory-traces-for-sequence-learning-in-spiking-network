@@ -518,7 +518,9 @@ namespace nest {
             /**
              *  NESTML generated onReceive code block for presynaptic port "pre_spikes" begins here!
             **/
-            S_.w = get_u() * get_x();
+            if (P_.use_stp){
+                S_.w = get_u() * get_x();
+            }
             //S_.x -= get_x() * get_u();
             //S_.u += P_.U * (1 - get_u());
 
@@ -527,17 +529,13 @@ namespace nest {
             set_delay_steps(__delay_steps);
             e.set_receiver(*__target);
 
-            if (P_.use_stp) {
-                e.set_weight(get_w());
-            } else {
-                e.set_weight(1.);
-            }
+            e.set_weight(get_w());
             // use accessor functions (inherited from Connection< >) to obtain delay in steps and rport
 //      e.set_sender_node_id(5);  // we need to set the sender ID manually.....
 //      e.(e);  // we need to set the sender ID manually.....
             e.set_delay_steps(get_delay_steps());
             e.set_rport(get_rport());
-            e();;
+            e();
 
 #ifdef DEBUG
             std::cout <<"\t-> new w = " << S_.w << std::endl;
@@ -713,7 +711,7 @@ namespace nest {
         recompute_internal_variables();
 
         // initial values for state variables in ODE or kernel
-        S_.w = 0.0; // as real
+        S_.w = 1.0; // as real
         S_.u = P_.U; // as real
         S_.x = 1.0; // as real
 
