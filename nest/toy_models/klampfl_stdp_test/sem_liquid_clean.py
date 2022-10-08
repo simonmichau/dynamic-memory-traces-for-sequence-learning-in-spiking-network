@@ -67,6 +67,8 @@ class SEMLiquidParams(object):
 
         # use (and adapt) bias/excitability term?
         self.use_priors = kwds.get('use_priors', True)
+        # use STDP weight update?
+        self.use_stdp = kwds.get('use_stdp', True)
         # use adaptive learning rate?
         self.use_variance_tracking = kwds.get('use_variance_tracking', True)
         # create any recurrent connections?
@@ -78,7 +80,7 @@ class SEMLiquidParams(object):
         # use dynamic synapses for recurrent connections?
         self.use_dynamic_synapses = kwds.get('use_dynamic_synapses', True)
         # use dynamic synapses for input connections?
-        self.use_dynamic_input_synapses = kwds.get('use_dynamic_input_synapses', False)
+        self.use_dynamic_input_synapses = kwds.get('use_dynamic_input_synapses', False)  # INFO: STP DISABLED FOR INPUT SYNAPSES
         # use dynamic synapses for readout connections? (only for WTA readouts)
         self.use_dynamic_readout_synapses = kwds.get('use_dynamic_readout_synapses', False)
         # use individual synapses for each connection, or use a single EPSP instance for each
@@ -275,7 +277,11 @@ class SEMLiquid(object):
         # state of the network (low-pass filtered network spike trains)
         self.state = numpy.zeros(self.nInputs+self.tsize)
         # weights
-        self.W = numpy.zeros((self.tsize+self.nReadouts, 1+self.nInputs+self.tsize))
+        if self.use_stdp:
+            self.W = numpy.zeros((self.tsize+self.nReadouts, 1+self.nInputs+self.tsize))
+        else:
+            self.W = numpy.ones((self.tsize+self.nReadouts, 1+self.nInputs+self.tsize))
+            self.W = -self.W
         # weight change
         self.dW = numpy.zeros(self.W.shape)
 
@@ -587,7 +593,6 @@ class SEMLiquid(object):
     # this is the main method that advances the simulation by one time step
     # x is the input, t is the optional target vector for the readout WTAs
     def process_input(self, x, t=None):
-        print("")
         if 1 in x: #x == [1]*self.nInputs:
             print "Breakpoint: Spike received at time t=", self.step
 
@@ -816,8 +821,12 @@ class SEMLiquid(object):
             num_fields_to_rec += num_weights_to_rec
         recorder = Recorder(nsteps/self.dt_rec+1, num_fields_to_rec)
         recorder.record(numpy.zeros(num_fields_to_rec))
+        if self.use_stdp:
+            self.do_train = True
+        else:
+            self.do_train = False
+            # TODO: set all weights to 1 instead of usual 0
 
-        self.do_train = True
         self.inpgen.reset()
         start_time = timeit.default_timer()
         # for step in range(nsteps):  # TODO revert
@@ -829,10 +838,12 @@ class SEMLiquid(object):
             if not self.use_inputs:
                 x = numpy.zeros(self.nInputs, dtype='int')
             else:
-                # x = self.inpgen.generate(step)  TODO revert this
                 # x = [1] if step in [10, 550] else [0]  # manually set input spikes for testing
-                x = [1] if step in shared_params.input_spikes else [0]  # manually set input spikes for testing
-                x = numpy.array(x)
+                if shared_params.use_fixed_spike_times:
+                    x = [1] if step in shared_params.input_spikes else [0]  # manually set input spikes for testing
+                    x = numpy.array(x)
+                else:
+                    x = self.inpgen.generate(step)
                 if not hasattr(self.inpgen.idx,'__iter__'):
                     t = numpy.asarray(numpy.arange(self.nReadouts)==self.inpgen.idx, 'bool')
                 #t = numpy.atleast_1d(t)
@@ -1454,10 +1465,15 @@ def sem_liquid_pattern1(seed=None, *p):
                              use_priors=False,
                              plot_order_states=False,
                              frac_tau_DS=10,
-                             use_dynamic_synapses=shared_params.use_stp_rec,
-                             # use_dynamic_synapses=True,  # TODO
-                             rNoise=0,
-                             use_variance_tracking=shared_params.use_variance_tracking,# eta=1e-4,
+                             use_dynamic_synapses=True,  # meaning: use_stp
+                             rNoise=2,
+                             use_noise=True,
+                             use_variance_tracking=True, # meaning: use_variance_tracking
+                             ###########################################################################################
+                             # Toggle this for testing STDP
+                             use_stdp=True, # meaning: use_stdp
+                             # NOTE: fixed spiketimes from shared_params don't work
+                             ###########################################################################################
                              pattern_sequences=[[0],[0]],
                              test_pattern_sequences=[[0],[0]],
                              seed=seed,
@@ -1467,7 +1483,7 @@ def sem_liquid_pattern1(seed=None, *p):
                              test_tNoiseRange=[300e-3, 800e-3],
                              size_lims=[1,1],
                              test_time_warp_range=(0.5,2.),
-                             nstepsrec=1000, # number of steps the recording lasts for
+                             nstepsrec=strain*1000, # number of steps the recording lasts for
                              dt_rec=1,  # recording rate/Abtastrate of recorder
                              plot_weights=False,
                              )
@@ -1494,6 +1510,7 @@ def sem_liquid_pattern1(seed=None, *p):
     liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
 
     for itest in range(1,num_train_periods+1):
+
         liquid.simulate(strain, titlestr="/simulating phase #%d" %(itest+1),
             savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
         #liquid.plot_weight_distribution()
@@ -1501,8 +1518,8 @@ def sem_liquid_pattern1(seed=None, *p):
         states = []
         ids = []
         test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
-        # X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
-        #     savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
+        X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
+            savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
         exit()
     for itest in range(1,num_test_periods):
         X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
