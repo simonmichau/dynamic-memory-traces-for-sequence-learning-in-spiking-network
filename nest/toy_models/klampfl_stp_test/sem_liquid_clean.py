@@ -257,7 +257,8 @@ class SEMLiquid(object):
         self.spk_out_trace = []
         self.epsp_trace = []
         self.epsp2_trace = []
-        # Trace or udyn and rdyn
+        # Trace of udyn and rdyn
+        self.isi_trace = []
         self.rdyn_trace = []
         self.udyn_trace = []
         self.dEPSP_trace = []
@@ -414,6 +415,7 @@ class SEMLiquid(object):
             self.isi = numpy.zeros(self.nInputs+self.tsize)
         else:
             self.udyn = self.rdyn = 1
+            self.isi = numpy.zeros(self.nInputs+self.tsize)
 
     def initialize_random_weights(self):
         tmp = numpy.random.rand(self.tsize+self.nReadouts,self.nInputs+self.tsize)*self.W_map
@@ -703,9 +705,13 @@ class SEMLiquid(object):
             self.udyn[y==1] = U + u*(1-U)*numpy.exp(-isi/(F+eps))
             self.isi += self.dt
             self.isi[y==1] = 0
+        else:
+            self.isi += self.dt
+            self.isi[y == 1] = 0
 
         self.u_trace.append(copy.deepcopy(self.u))
         self.u_inp_trace.append(x)
+        self.isi_trace.append(copy.deepcopy(self.isi))
         self.rdyn_trace.append(copy.deepcopy(self.rdyn))
         self.udyn_trace.append(copy.deepcopy(self.udyn))
         self.dEPSP_trace.append(copy.deepcopy(self.udyn*self.rdyn))
@@ -835,10 +841,12 @@ class SEMLiquid(object):
             if not self.use_inputs:
                 x = numpy.zeros(self.nInputs, dtype='int')
             else:
-                # x = self.inpgen.generate(step)  TODO revert this
                 # x = [1] if step in [10, 550] else [0]  # manually set input spikes for testing
-                x = [1] if step in shared_params.input_spikes else [0]  # manually set input spikes for testing
-                x = numpy.array(x)
+                if shared_params.use_fixed_spike_times:
+                    x = [1] if step in shared_params.input_spikes else [0]  # manually set input spikes for testing
+                    x = numpy.array(x)
+                else:
+                    x = self.inpgen.generate(step)
                 if not hasattr(self.inpgen.idx,'__iter__'):
                     t = numpy.asarray(numpy.arange(self.nReadouts)==self.inpgen.idx, 'bool')
                 #t = numpy.atleast_1d(t)
@@ -1010,12 +1018,12 @@ class SEMLiquid(object):
 
         #print(len(self.u_trace[0]))
         n_neurons = len(self.u_trace[0])
-        fig, axes = plt.subplots(nrows=8, ncols=n_neurons, figsize=(10, 18))
+        fig, axes = plt.subplots(nrows=9, ncols=n_neurons, figsize=(10, 18))
         n_inp_neurons = 1
 
         for neuron in range(n_neurons):
             # plotting_vars = {'u_trace': [], 'u_inp_trace': [], 'spk_out_trace': [], 'epsp1': [], 'epsp2': []}
-            plotting_vars = {'u_trace': [], 'u_inp_trace': [], 'spk_out_trace': [], 'epsp': [], 'udyn': [], 'rdyn': [], 'dEPSP': []}
+            plotting_vars = {'u_trace': [], 'u_inp_trace': [], 'spk_out_trace': [], 'epsp': [], 'udyn': [], 'rdyn': [], 'dEPSP': [], 'isi': []}
             for i in range(len(self.u_trace)):
                 plotting_vars['u_trace'].append(self.u_trace[i][neuron])  # Voltage trace
                 # plotting_vars['u_inp_trace'].append(self.u_inp_trace[i][neuron])  # Voltage trace
@@ -1033,6 +1041,7 @@ class SEMLiquid(object):
                     plotting_vars['udyn'].append(self.udyn)  # R trace
                     plotting_vars['rdyn'].append(self.rdyn)  # u trace
                     plotting_vars['dEPSP'].append(self.udyn*self.rdyn) # calculated delta EPSP (u*R)
+                plotting_vars['isi'].append(self.isi_trace[i][n_inp_neurons + neuron])  # ISI trace
 
             axes_idx = 0
             time_axis = numpy.arange(1, len(plotting_vars['u_trace']) + 1, 1)
@@ -1470,7 +1479,8 @@ def sem_liquid_pattern1(seed=None, *p):
                              frac_tau_DS=10,
                              ###########################################################################################
                              # Toggle this for testing STP, also remind to set spiketimes in shared_params so that STP is visible
-                             use_dynamic_synapses=False,  # meaning: use_stp
+                             use_dynamic_synapses=True,  # meaning: use_stp
+                             # NOTE: fixed spiketimes from shared_params don't work
                              ###########################################################################################
                              rNoise=2,
                              use_noise=True,
@@ -1480,7 +1490,7 @@ def sem_liquid_pattern1(seed=None, *p):
                              seed=seed,
                              size=(1,2),
                              pConn=1.0,
-                             tNoiseRange=[100e-3,100e-3],
+                             tNoiseRange=[300e-3,500e-3],
                              test_tNoiseRange=[300e-3, 800e-3],
                              size_lims=[1,1],
                              test_time_warp_range=(0.5,2.),
@@ -1512,7 +1522,7 @@ def sem_liquid_pattern1(seed=None, *p):
 
     for itest in range(1,num_train_periods+1):
         liquid.simulate(strain, titlestr="/simulating phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True)
+            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
         #liquid.plot_weight_distribution()
 
         states = []
