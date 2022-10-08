@@ -63,6 +63,10 @@ namespace nest {
                 &iaf_psc_exp_wta__with_stdp_stp::get_normalization_sum);
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_rate_fraction,
                 &iaf_psc_exp_wta__with_stdp_stp::get_rate_fraction);
+        // Cant use r here because it has wrong type
+        insert_(iaf_psc_exp_wta__with_stdp_stp_names::_rate,
+                &iaf_psc_exp_wta__with_stdp_stp::get_rate);
+
         // Add vector variables
     }
 }
@@ -112,20 +116,21 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp() : ArchivingNode
     S_.decay_time_kernel__X__all_spikes = 0; // as real
 
     V_.rate_fraction = 0.0;
+    V_.rate = 0.0;
     V_.eta = 0.05;
     V_.normalization_max = -1e12;
-//    std::fill(V_.localWeights_Wk.begin(), V_.localWeights_Wk.end(), );
-//    nest::uniform_distribution uniform_dev_;
-    for (auto& it : V_.localWeights_Wk)
-    {
-        std::random_device rd;
-        std::mt19937 e2(rd());
-        std::uniform_real_distribution<> dist(0, 1);
-        double tmp  = dist(e2);
-
-        it = -std::log(dist(e2));
-    }
-
+    // Initialize local weights with 0
+    std::fill(V_.localWeights_Wk.begin(), V_.localWeights_Wk.end(), 0);
+    // Initialize local weights random (log(x))
+    //for (auto& it : V_.localWeights_Wk)
+    //{
+    //    std::random_device rd;
+    //    std::mt19937 e2(rd());
+    //    std::uniform_real_distribution<> dist(0, 1);
+    //    double tmp  = dist(e2);
+    //    it = std::log(dist(e2));
+        //std::cout << "Local Weight: " << it << std::endl;
+    //}
     std::fill(V_.Q.begin(), V_.Q.end(), 1);
     std::fill(V_.S.begin(), V_.S.end(), 0);
     recordablesMap_.create();
@@ -167,6 +172,7 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp(const iaf_psc_exp
     V_.S = __n.V_.S;
     V_.eta = __n.V_.eta;
     V_.rate_fraction = __n.V_.rate_fraction;
+    V_.rate = __n.V_.rate;
     V_.localWeights_Wk = __n.V_.localWeights_Wk;
     V_.preSynWeights = __n.V_.preSynWeights;
     n_incoming_ = __n.n_incoming_;
@@ -340,9 +346,9 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
         //  std::cout << S_.V_m << std::endl;
 
         V_.rate_fraction = std::exp(get_V_m() - V_.normalization_max) / get_normalization_sum();
-        double rate = P_.R_max * V_.rate_fraction;
+        V_.rate = P_.R_max * V_.rate_fraction;
 
-        double p = __resolution * rate / 1000;
+        double p = __resolution * V_.rate / 1000;
 
         bool use_fixed_spiketimes = V_.fixed_spiketimes.size() > 0;
         bool emit_spike = false;
