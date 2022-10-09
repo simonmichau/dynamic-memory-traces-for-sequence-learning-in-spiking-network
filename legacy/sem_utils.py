@@ -43,6 +43,7 @@ def conditional_entropy(y, x):
 def distance(pos1, pos2):
     pos1 = numpy.array(pos1)
     pos2 = numpy.array(pos2)
+    numpy.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
     return numpy.linalg.norm(pos1-pos2)
     #return numpy.sqrt((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)
 

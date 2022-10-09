@@ -281,12 +281,12 @@ class SequentialPatternInputGenerator(PatternInputGenerator):
         #print " ",t,tp,tps,self.last_pattern_start,self.last_pattern_sequence_start
         #if tps%self.get_current_pattern_sequence_length()==0:
         self.ids = self.idx*numpy.ones(self.n, 'int')
-        if tps==self.get_current_pattern_sequence_length():
+        if tps==self.get_current_pattern_sequence_length():  # if end of the sequence is reached
             self.draw_pattern()
             #print t, "new sequence", self.current_pattern_sequence, "pattern", self.idx
             self.last_pattern_sequence_start = t
             self.last_pattern_start = t
-        elif tp==self.get_current_pattern_length():
+        elif tp==self.get_current_pattern_length():  # if end of the pattern is reached
             self.pidx += 1
             self.idx = self.current_pattern_sequence[self.pidx]
             self.current_pattern = self.patterns[self.idx]
@@ -295,6 +295,7 @@ class SequentialPatternInputGenerator(PatternInputGenerator):
             #print t, "pattern", self.idx
         if self.noise:
             y = (numpy.random.exponential(1.0/self.r, self.n) <= self.dt).astype(int)
+            assert False, "self.noise is true."
         else:
             y = [numpy.any((st*self.time_warp>=tp*self.dt) & (st*self.time_warp<(tp+1)*self.dt)) for st in self.current_pattern]
             y = numpy.asarray(y).astype(int)
@@ -313,7 +314,7 @@ class SequentialPatternInputGenerator(PatternInputGenerator):
 
 class EmbeddedPatternInputGenerator(InputGenerator):
     def __init__(self, inpgen, tNoiseRange=(100e-3, 100e-3), prob=0.5):
-        self.inpgen = inpgen
+        self.inpgen = inpgen  # inpgen_seq
         self.dt = self.inpgen.dt
         self.r = self.inpgen.r# + self.inpgen.rNoise
         self.n = self.inpgen.n

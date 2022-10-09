@@ -1,4 +1,5 @@
 import matplotlib
+import numpy as np
 from matplotlib import pyplot as plt
 
 matplotlib.use('Agg')
@@ -110,7 +111,7 @@ class SEMLiquidParams(object):
         # each this number of time steps a recording is initialized (during training)
         self.dt_rec_spk = kwds.get('dt_rec_spk', 5000)
         # this recording lasts for this number of time steps
-        self.nstepsrec = kwds.get('nstepsrec',5000)
+        self.nstepsrec = kwds.get('nstepsrec',10000)
         # number of time steps for recording stuff
         self.dt_rec = kwds.get('dt_rec', 100)
         # plot network response ordered by the mean activation time of neurons?
@@ -283,6 +284,9 @@ class SEMLiquid(object):
         self.u_inp_trace = []
         self.epsp_trace = []
         self.epsp2_trace = []
+        # trace of input and recurrent weight during simulation
+        self.w_inp_trace = []
+        self.w_rec_trace = []
         # temporary variables for storing postsynaptic epsp traces
         if self.use_multiple_synapses:
             self.epsp = numpy.zeros((self.tsize+self.nReadouts, self.nInputs+self.tsize))
@@ -324,7 +328,9 @@ class SEMLiquid(object):
 
         # variance tracking parameters
         if self.use_variance_tracking:
+            # Expected value of (random variable) w_{ki} ==> E[w_ki]
             self.S = numpy.zeros(self.W.shape)
+            # Expected value of (random variable) w_{ki}^2 ==> E[w_ki^2]
             self.Q = numpy.ones(self.W.shape)
             self.dS = numpy.zeros(self.W.shape)
             self.dQ = numpy.zeros(self.W.shape)
@@ -344,7 +350,7 @@ class SEMLiquid(object):
         self.test_performance = dict()
 
         self.use_inputs = True
-        self.use_noise = False
+        self.use_noise = True
         self.do_train = True
         self.order_states = (self.task=='pattern' or self.task=='speech')
         self.order_states2 = False
@@ -384,6 +390,7 @@ class SEMLiquid(object):
         logging.debug(liquidstr)
         logging.debug("SEM sizes:\n"+str(self.sizes))
         self.analyze_connections()
+        #print numpy.random.rand()
         #print numpy.random.rand()
 
     def ind2pos(self, i):
@@ -457,8 +464,8 @@ class SEMLiquid(object):
         self.distances = numpy.zeros((npos,npos))
         self.conn = numpy.zeros((npos,npos)).astype(int)
         self.inpconn = numpy.zeros((self.nInputs,npos)).astype(int)
-        self.idmap = numpy.empty(self.size, dtype='object')
-        self.group_map = []
+        self.idmap = numpy.empty(self.size, dtype='object')  # nxm array holding a list of the node ids contained in this neuron
+        self.group_map = []  # a list of length tsize stating the wta circuit id corresponding to each node id (index)
         self.groups = numpy.zeros((self.tsize+self.nReadouts, self.tsize+self.nReadouts)).astype(int)
         self.W_map = numpy.zeros((self.tsize+self.nReadouts, self.nInputs+self.tsize)).astype(int)
 
@@ -512,13 +519,13 @@ class SEMLiquid(object):
             nrec = numpy.mean(numpy.dot(self.conn[input_sems,:].T, self.sizes.flatten()[input_sems]))
             pcin = nrec*frac/float(self.nInputs)
             #print "pcin",pcin
-        for i in range(self.nInputs):
+        for i in range(self.nInputs): # set inpconn = 1 with probability pcin (if pcin = 1.0 connect each input to all nodes of the network)
             for j in input_sems:
                 if numpy.random.rand()<=pcin:
                     self.inpconn[i,j] = 1
                     printf("\b\b\b\b%3d%%" % ((i*npos+j+1)*100.0/(self.nInputs*npos)))
         printf("\b\b\b\b100%\n")
-        for i,j in zip(*numpy.where(self.inpconn)):
+        for i,j in zip(*numpy.where(self.inpconn)):  # create W_map
             to_start, to_end = tuple(self.idmap[self.ind2pos(j)][[0,-1]])
             self.W_map[to_start:to_end+1, i] = 1
             #print "connect: %d-%d/%d" % (to_start,to_end,i)
@@ -530,7 +537,7 @@ class SEMLiquid(object):
                     self.W_map[:self.tsize,self.nInputs:][i,j] = 0
                     #print "remove: %d/%d" % (i,self.nInputs+j)
 
-        if self.use_self_recurrent_connections:
+        if self.use_self_recurrent_connections:  # not used anywhere relevant in the paper
             for i in range(npos):
                 from_start, from_end = tuple(self.idmap[self.ind2pos(i)][[0,-1]])
                 to_start, to_end = tuple(self.idmap[self.ind2pos(i)][[0,-1]])
@@ -661,7 +668,11 @@ class SEMLiquid(object):
     # this is the main method that advances the simulation by one time step
     # x is the input, t is the optional target vector for the readout WTAs
     def process_input(self, x, t=None):
+        self.u_trace.append(self.u)
         self.u_inp_trace.append(x)
+        self.w_inp_trace = numpy.append(self.w_inp_trace, numpy.array(self.W[0, 1:self.nInputs + 1]), axis=0)
+        self.w_rec_trace = numpy.append(self.w_rec_trace, numpy.array(self.W[0, 1 + self.nInputs:]), axis=0)
+
         self.epsp_trace.append(self.epsp)
         self.epsp2_trace.append(self.epsp2)
         if t is not None:
@@ -676,6 +687,9 @@ class SEMLiquid(object):
         if self.use_multiple_synapses:
             self.u = self.W[:,0] + numpy.sum(self.W[:,1:]*self.W_map*self.rec_mod[:,1:]*self.Y, axis=1)
         else:
+            if any(self.u):
+                print "Break"
+            # u negative; W negative; Y positive
             self.u = self.W[:,0] + numpy.dot(self.W[:,1:]*self.W_map*self.rec_mod[:,1:], self.Y)
         # apply Poisson correction if enabled
         if self.use_poisson_correction:
@@ -688,8 +702,9 @@ class SEMLiquid(object):
         # calculate output probabilities
         expU = numpy.exp(self.u - numpy.max(self.u))
         self.Zp = expU / numpy.dot(self.groups, expU)
+        #print numpy.dot(self.groups, expU)
         self.Zp[:self.tsize] = (1-self.Znoise) * self.Zp[:self.tsize] + \
-            self.Znoise/numpy.sum(self.groups[:self.tsize,:self.tsize], axis=0)
+            self.Znoise/numpy.sum(self.groups[:self.tsize,:self.tsize], axis=0)  # changes nothin as long as Znoise = 0.0
         # draw output spikes
         self.r = self.rmax*self.Zp
         self.r[self.tsize:] *= self.rmax_rdt*self.Zp[self.tsize:]
@@ -799,7 +814,7 @@ class SEMLiquid(object):
         order2 = numpy.arange(self.tsize)
         times2 = numpy.zeros(order2.shape)
         if self.order_states:
-            for pti,ptt in enumerate(p[::-1]):
+            for pti,ptt in enumerate(p[::-1]):  # iterate over p in reverse
                 pt = ptt - tstart
                 pi = numpy.max(I[pt])
                 pl = t[-pti-1]
@@ -851,7 +866,7 @@ class SEMLiquid(object):
         logging.debug("%s...\n" % (titlestr))
         Ydict = dict(); Zdict = dict(); Idict = dict(); Idict2 = dict(); ZRdict = dict();
         rdict = dict(); ldict = dict(); pdict = dict(); tdict = dict(); stimdict = dict();
-        rend = numpy.zeros((self.nstepsrec,self.tsize))
+        rend = numpy.zeros((self.nstepsrec,self.tsize))  # rate distribution of neuron
         spk_rec_times = range(0, nsteps-self.nstepsrec+1, self.dt_rec_spk)
         if (nsteps-self.nstepsrec) not in spk_rec_times:
             spk_rec_times.append(nsteps-self.nstepsrec)
@@ -860,6 +875,7 @@ class SEMLiquid(object):
         num_weights_to_rec = 50
         inp_weight_ids = numpy.where(self.W_map[:self.tsize,:self.nInputs].flatten())[0]
         inp_weights_to_rec = numpy.random.permutation(inp_weight_ids)[:num_weights_to_rec]
+        num_fields_to_rec = num_weights_to_rec
         num_fields_to_rec = num_weights_to_rec
         if self.use_recurrent_connections:
             rec_weight_ids = numpy.where(self.W_map[:self.tsize,self.nInputs:].flatten())[0]
@@ -893,7 +909,7 @@ class SEMLiquid(object):
                 #t = numpy.atleast_1d(t)
                 #t = None
             self.process_input(x, t)
-            self.u_trace.append(self.u)
+            #self.u_trace.append(self.u[0])
             if (step+1)%self.dt_out==0:
                 ratio = float(step+1)/float(nsteps)
                 time = timeit.default_timer() - start_time
@@ -932,7 +948,7 @@ class SEMLiquid(object):
                 for i in numpy.where(self.Z[self.tsize:])[0]:
                     ZRdict[rec_start][i].append(t)
                 #Idict[rec_start][t] = self.inpgen.get_idx()
-                Idict[rec_start].append(self.inpgen.idx)
+                Idict[rec_start].append(self.inpgen.idx)  # ID of pattern? or noise if -1
                 Idict2[rec_start].append(self.inpgen.get_idx())
                 rdict[rec_start][t,:] = self.Zp[self.tsize:]
                 ldict[rec_start][t,:] = [self.H_inp,self.H_rec,kld(self.Zp_rec,self.Zp_inp),self.rho]
@@ -956,7 +972,7 @@ class SEMLiquid(object):
                             stimdict[rec_start].append(self.inpgen.stimulus.file)
             if step>=nsteps-self.nstepsrec:
                 t = step - (nsteps-self.nstepsrec)
-                rend[t,:] = self.Zp[:self.tsize]
+                rend[t,:] = self.Zp[:self.tsize] # update row of rend
         end_time = timeit.default_timer()
         elapsed_time = end_time - start_time
         printf("\nsimulated %ds in %s real time\n" % (Tsim, format_time(elapsed_time)))
@@ -967,8 +983,10 @@ class SEMLiquid(object):
 
         recorder.stop_recording()
         inp_weights = recorder.read(num_weights_to_rec)
+        #inp_weights = recorder.continuous_inp_rec[:, :num_weights_to_rec]
         if self.use_recurrent_connections:
             rec_weights = recorder.read(num_weights_to_rec)
+            #rec_weights = recorder.continuous_rec_rec[:, :num_weights_to_rec]
         if self.use_priors:
             priors = recorder.read(num_weights_to_rec)
         if self.nReadouts > 0:
@@ -1003,22 +1021,62 @@ class SEMLiquid(object):
                 pylab.gca().set_xticklabels([])
                 pylab.yticks(pylab.yticks()[0][1:])
                 pylab.ylim([0,self.tsize])
-                pylab.axes([0.125,0.1,0.775,0.25])
-                pylab.hold(True)
-                pylab.plot(ldict[rec_step][:,0], 'r')
-                pylab.plot(ldict[rec_step][:,1], 'b')
-                pylab.plot(ldict[rec_step][:,2], 'k')
-                pylab.ylabel('entr. [bit]')
-                pylab.gca().yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
-                ax2 = pylab.twinx()
-                pylab.plot(ldict[rec_step][:,3], 'k--')
-                pylab.ylim([-0.1,1.1])
-                pylab.yticks([0.0,1.0])
-                ax2.yaxis.tick_right()
+                #pylab.axes([0.125,0.1,0.775,0.25])
+                #pylab.hold(True)
+                #pylab.plot(ldict[rec_step][:,0], 'r')
+                #pylab.plot(ldict[rec_step][:,1], 'b')
+                #pylab.plot(ldict[rec_step][:,2], 'k')
+                #pylab.ylabel('entr. [bit]')
+                #pylab.gca().yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
+                #ax2 = pylab.twinx()
+                #pylab.plot(ldict[rec_step][:,3], 'k--')
+                #pylab.ylim([-0.1,1.1])
+                #pylab.yticks([0.0,1.0])
+                #ax2.yaxis.tick_right()
                 pylab.xlabel('time [ms]')
-                pylab.ylabel(r'$\rho$')
-                self.plotInfo(ax, fs=12)
+                #pylab.ylabel(r'$\rho$')
+                #self.plotInfo(ax, fs=12)
                 self.save_figure(self.outputdir+'%s_%02d.%s' % (savestrprefix,rec_step*self.dt,self.ext))
+
+        if 0:
+            order, times, Tord, order2, times2, Tord2 = self.get_order(p, I2, t, r, 0, nsteps)
+
+            if self.swap_order:
+                order, order2, times, times2 = order2, order, times2, times
+            #pylab.figure(figsize=(12,9))
+            pylab.figure(figsize=(8,4))
+            ax = pylab.axes([0.125,0.67,0.775,0.2])
+            #pylab.subplot(4,1,1)
+            plot_spike_trains2(Y, nsteps, pylab.gca(), Is, ms=ms, sub_neurons=sub_neurons_input, patterns=(p,t))
+            pylab.gca().yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(2))
+            pylab.gca().set_xticklabels([])
+            if self.task=='multi':
+                pylab.gca().set_yticklabels([])
+            pylab.ylabel('input')
+            pylab.yticks(pylab.yticks()[0][1:])
+            #pylab.title(titlestr)
+            pylab.figtext(0.5, 0.95, titlestr, va='center', ha='center')
+            if self.task=='speech':
+                for pt,pl,s in zip(p,t,stims):
+                    if I[pt]>=0 and pt+pl/2<=nsteps:
+                        pylab.text(pt+0.5*pl, self.nInputs, "digit %d"%(s), ha="center", va="bottom", fontsize=16,
+                            color=self.colors[I[pt]], weight='bold')
+            if not self.task=='multi':
+                pylab.axes([0.125,0.17,0.775,0.48])
+                pylab.hold(True)
+                plot_spike_trains2([Z[i] for i in order], nsteps, pylab.gca(), self.group_map[order],
+                    sub_neurons=sub_neurons, ms=ms)
+                if self.plot_order_states:
+                    pylab.plot(times, numpy.arange(self.tsize), 'k')
+                pylab.ylabel('network')
+                pylab.gca().yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
+                pylab.yticks(pylab.yticks()[0][1:])
+                pylab.ylim([0,self.tsize])
+
+            pylab.xlabel('time [ms]')
+            #self.plotInfo(ax, fs=12)
+            self.save_figure(self.outputdir+'%s.%s' % (savestrprefix,self.ext))
+
 
         if self.plot_weights:
             co = ['b','g','r','y','c','m','k']
@@ -1057,23 +1115,44 @@ class SEMLiquid(object):
                 pylab.title('readout weights')
                 pylab.xlabel('time [s]')
                 self.save_figure(self.outputdir+'%s_rdt_weights.%s' % (savestrprefix,self.ext))
-        # Plot membrane potentials during simulation
-        #print self.u_trace
-        plt_list0 = []
-        plt_list1 = []
-        plt_list2 = []
-        print(len(self.u_inp_trace[0]))
-        for i in range(len(self.epsp_trace)):
-            #plt_list0.append(self.epsp_trace[i][0] * self.u_inp_trace[i][0])
-            #plt_list1.append(self.epsp_trace[i][10] * self.u_inp_trace[i][10])
-            #plt_list2.append(self.epsp_trace[i][20] * self.u_inp_trace[i][20])
-            plt_list0.append(self.u_inp_trace[i][0])
-            plt_list1.append(self.u_inp_trace[i][10])
-            plt_list2.append(self.u_inp_trace[i][20])
-        plt.plot(plt_list0, color="r")
-        plt.plot(plt_list1, color="g")
-        plt.plot(plt_list2, color="b")
-        plt.show()
+
+        if 1: # TODO: revert the if 0
+            # Plot membrane potentials during simulation
+            plt_list0 = []
+            plt_list1 = []
+            plt_list2 = []
+            # print(len(self.u_trace[0]))
+            for i in range(len(self.u_trace)):
+                # plt_list0.append(self.epsp_trace[i][0] * self.u_inp_trace[i][0])
+                # plt_list1.append(self.epsp_trace[i][10] * self.u_inp_trace[i][10])
+                # plt_list2.append(self.epsp_trace[i][20] * self.u_inp_trace[i][20])
+                plt_list0.append(self.u_trace[i])  # Voltage trace
+                plt_list1.append(self.u_inp_trace[i])  # Input trace
+
+            fig = plt.figure(figsize=(6, 7))
+            ax = fig.add_subplot(411)
+            plt_list0 = numpy.array(plt_list0)
+            # ax.plot(-plt_list0, color="r")
+            ax.plot(plt_list0)
+            ax.set_title('Voltage trace')
+
+            ax = fig.add_subplot(412)
+            ax.plot(plt_list1, color="g", label='input trace')
+            ax.set_title('Input trace')
+
+            ax = fig.add_subplot(413)
+            for i in range(rec_weights.shape[1]):
+                ax.plot(ts, rec_weights[:, i], c=co[i % len(co)])
+            ax.set_title('Recurrent weights')
+
+            ax = fig.add_subplot(414)
+            for i in range(1):  # range(inp_weights.shape[1]):
+                pylab.plot(ts, inp_weights[:, i], c=co[i % len(co)])
+            pylab.title('Input weights')
+
+            fig.tight_layout()
+            fig.savefig('voltage_trace.pdf')
+            plt.show()
 
     def trainPCA(self, states):
         print "training PCA..."
@@ -1299,7 +1378,10 @@ class SEMLiquid(object):
         X = numpy.zeros((nsteps,self.tsize))
         Xs = numpy.zeros((nsteps,self.nInputs))
         rzr = numpy.zeros((nsteps,self.nReadouts))
-        p = []; t = []; stims = [];
+        # p holds times of last_pattern_start
+        p = [];
+        # t holds the beginning of
+        t = []; stims = [];
 
         #if self.task=='multi':
             #self.reset_epsp()
@@ -1413,28 +1495,6 @@ class SEMLiquid(object):
                 d["times"] = times
                 d["order2"] = order2
                 d["times2"] = times2
-            #pts = []
-            #for pti,ptt in enumerate(p[::-1]):
-                #pt = ptt
-                #pi = numpy.max(I2[pt])
-                #pl = t[-pti-1]
-                #if pi<0:
-                    #continue
-                #if pt+pl<=nsteps:
-                    #pts.append(numpy.arange(pt,pt+pl).astype(int))
-                #if len(pts)==2:
-                    #break
-            #resp1 = r[pts[0],:]
-            #resp2 = r[pts[1],:]
-            #d = shelve.open("corr_test.shelve")
-            #d["response%02d_lim1"%(itest)] = resp1
-            #d["response%02d_lim2"%(itest)] = resp2
-            #d["response%02d"%(itest)] = r
-            #d["spikes%02d"%(itest)] = Z
-            #d["order%02d"%(itest)] = order
-            #d["Tord%02d"%(itest)] = pts[0]
-            #d["Tord2%02d"%(itest)] = pts[1]
-            #d.close()
 
             if self.swap_order:
                 order, order2, times, times2 = order2, order, times2, times
@@ -1596,7 +1656,9 @@ class SEMLiquid(object):
                     max_inp = self.epsp_trace[i][j] * self.u_inp_trace[i][j]
             if max_inp > 0.0:
                 plt_list.append(max_inp)
-        ax.plot(plt_list)
+        #ax.plot(plt_list)
+        #print self.u_trace
+        ax.plot(self.u_trace)
         #plt.plot(plt_list1)
         #plt.plot(plt_list2)
         plt.show()
@@ -1697,7 +1759,7 @@ def sem_liquid_speech(seed=None, *p):
     return liquid, test_times
 
 def sem_liquid_pattern2(seed=None, *p):
-    strain = 100
+    strain = 5
     stest_train = 3
     stest = 3
     params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_ind', sprob=[0.8, 0.2], nPatterns=3,
@@ -1738,15 +1800,18 @@ def sem_liquid_pattern2(seed=None, *p):
 
 # returns liquid computing model and test times for a given seed (seed) and a number of parameters (*p)
 def sem_liquid_pattern1(seed=None, *p):
-    strain = 5  # 100  # training set length (seconds)
+    strain = 1 # 100  # training set length (seconds)
     # strain = 10
     stest_train = 3
     stest = 3
     params = SEMLiquidParams(task='pattern', nInputs=100, pattern_mode='random_switching', sprob=0.5, nPatterns=1, rin=5,
-        tPattern=[300e-3]*1, use_priors=False, plot_order_states=False, frac_tau_DS=10, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=True,# eta=1e-4,
+        tPattern=[300e-3], use_priors=False, plot_order_states=False, frac_tau_DS=10, use_dynamic_synapses=True, rNoise=2, use_variance_tracking=True,# eta=1e-4,
         use_entropy_regularization=False, pattern_sequences=[[0],[0]], test_pattern_sequences=[[0],[0]], seed=seed, size=(10,5), pConn=1.0,
-        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 800e-3], size_lims=[2,10], test_time_warp_range=(0.5,2.))
+        tNoiseRange=[300e-3,500e-3], test_tNoiseRange=[300e-3, 800e-3], size_lims=[2,10], test_time_warp_range=(0.5,2.),
+                             nstepsrec=strain*1000)
     liquid = SEMLiquid(params)
+    #liquid.use_inputs = False
+    liquid.use_noise = False
     liquid.order_states2 = False
     liquid.sub_neurons = 4
     liquid.isppt = True
@@ -1759,20 +1824,22 @@ def sem_liquid_pattern1(seed=None, *p):
     itest = 0
     test_titlestr = "response to patterns before training"
     liquid.test_inpgen.inpgen.time_warp_range=(1.,1.)
-    X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
-    X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
-        savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    #X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
+    #    savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
+    #X,I,perf = liquid.test(stest, 2*itest+2, titlestr=test_titlestr,
+    #    savestrprefix="sem_liquid_test_pre_train%d_inp"%(2*itest+2), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
     liquid.test_inpgen.inpgen.time_warp_range=(0.5,2.)
 
     for itest in range(1,num_train_periods+1):
         liquid.simulate(strain, titlestr="/simulating phase #%d" %(itest+1),
-            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=False)
+            savestrprefix="sem_liquid_train%d" % (itest+1), do_plot=True) # TODO: revert do_plot=True
         states = []
         ids = []
+        exit()
         test_titlestr = "response to patterns after %ds training" % ((itest+1)*strain)
         X,I,perf = liquid.test(stest_train, itest, titlestr="readout train phase after %ds training" % ((itest+1)*strain),
             savestrprefix="sem_liquid_test%d_train_inp"%(itest), plot_readout_spikes=False, train_readouts=True, do_plot=True, do_save=True)
+        exit()
     for itest in range(1,num_test_periods):
         X,I,perf = liquid.test(stest, 2*itest+1, titlestr=test_titlestr,
             savestrprefix="sem_liquid_test%d_inp"%(2*itest+1), plot_readout_spikes=False, train_readouts=False, do_plot=True, do_save=True)
