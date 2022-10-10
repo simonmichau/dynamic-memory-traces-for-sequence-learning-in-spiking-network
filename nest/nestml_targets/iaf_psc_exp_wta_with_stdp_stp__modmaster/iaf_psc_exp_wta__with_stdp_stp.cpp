@@ -280,6 +280,24 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
     double u_t = 0;
     const double resolution = nest::Time::get_resolution().get_ms();  // do not remove, this is necessary for the resolution() function
 
+    // TODO temporarily switched order - result: seems to match legacy behavior
+//        // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
+//    for (auto it = V_.spikeEvents.begin(); it != V_.spikeEvents.end();) {
+//#ifdef DEBUG
+//        std::cout << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
+//            << "; origin: " << origin.get_steps() << "; lag: " << lag << "\n" << std::flush;
+//#endif
+//        // update EPSPs if there's an incoming spike
+//        if (it->deliveryTime + 1 == origin.get_steps() + lag) {
+//            V_.yt_epsp_decay[it->id_] += V_.preSynWeights[it->id_];  // == rdyn*udyn, logic is in the synapse
+//            V_.yt_epsp_rise[it->id_] += V_.preSynWeights[it->id_];
+//            it = V_.spikeEvents.erase(it);
+//        } else {
+//            ++it;
+//        }
+//    }
+    // TODO end
+
     for (auto &it: V_.activeSources) // iterated over all presynaptic nodes/sources
     {
         // iterate over each presyn index i and compute the weighted y_i(t) for the current time step
@@ -287,7 +305,7 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
         u_t += V_.localWeights_Wk[it] * V_.yt_epsp_traces[it];  // add to sum after weighting with w_ki(t)  == eq.1
 
         // iterate over each presyn index and evolve rise and decay EPSP terms
-        // TODO this are the exact solutions, but use lame numerics as in Klampfl
+        // TODO this are the exact solutions, but have to use lame numerics as in Klampfl for consistency reasons
 //        V_.yt_epsp_decay[it] *= V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
 //        V_.yt_epsp_rise[it] *= V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
         // TODO this appears to be crucial for similar results!
@@ -339,14 +357,21 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
         //B_.all_spikes_grid_sum_ = get_all_spikes().get_value(lag);
 //        std::cout << "all_spikes_grid_sum_ = " << B_.all_spikes_grid_sum_ << "\n" << std::flush;
 
-        evolve_epsps(origin, lag);
+        evolve_epsps(origin, lag);  // modifies V_m
 
         S_.time_cnt += 1;
 //      S_.V_m = get_y() * 1.0;
         //  std::cout << S_.V_m << std::endl;
 
         V_.rate_fraction = std::exp(get_V_m() - V_.normalization_max) / get_normalization_sum();
-        V_.rate = P_.R_max * V_.rate_fraction;
+        if (V_.rate_fraction > 1.)
+        {
+            V_.rate = 0.;
+        }
+        else
+        {
+            V_.rate = P_.R_max * V_.rate_fraction;
+        }
 
         double p = __resolution * V_.rate / 1000;
 
@@ -357,6 +382,7 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
             // assert(false);
             if (((0) + (1) * nest::get_vp_specific_rng(get_thread())->drand()) <= p) {
                 emit_spike = true;
+//                std::cout << "emitting spike " << V_.rate_fraction << std::endl << std::flush;
             }
         } else // iterate through spiketimes and fire if current step is firing step (set in python)
         {
