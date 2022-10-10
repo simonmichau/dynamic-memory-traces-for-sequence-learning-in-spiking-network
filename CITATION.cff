@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+authors:
+  - family-names: Michau
+    given-names: Simon
+title: "Dynamic memory traces for sequence learning in spiking networks"
+version: 1.0.0
+date-released: 2022-10-14
