@@ -60,6 +60,7 @@ namespace nest {
         const Name _normalization_sum("normalization_sum");
         const Name _rate_fraction("rate_fraction");
         const Name _rate("rate");
+        const Name _max_neuron_gid("max_neuron_gid");
     }
 }
 
@@ -292,6 +293,14 @@ public:
     //   Getters/setters for parameters
     // -------------------------------------------------------------------------
 
+    inline double get_max_neuron_gid() const {
+        return P_.max_neuron_gid;
+    }
+
+    inline void set_max_neuron_gid(const double __v) {
+        P_.max_neuron_gid = __v;
+    }
+
     inline double get_tau_m() const {
         return P_.tau_m;
     }
@@ -489,7 +498,7 @@ private:
         double R_max;
         double use_variance_tracking;
         double use_stdp;
-
+        double max_neuron_gid;
         /**
          * Initialize parameters to their default values.
         **/
@@ -702,6 +711,7 @@ inline nest::port iaf_psc_exp_wta__with_stdp_stp::handles_test_event(nest::Insta
 inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) const {
     // parameters
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, get_tau_m());
+    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_max_neuron_gid, get_max_neuron_gid());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn, get_tau_syn());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_R_max, get_R_max());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_use_variance_tracking, get_use_variance_tracking());
@@ -732,6 +742,10 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     // parameters
     double tmp_tau_m = get_tau_m();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_m, tmp_tau_m);
+    
+    double tmp_max_neuron_gid = get_max_neuron_gid();
+    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_max_neuron_gid, tmp_max_neuron_gid);
+    
     double tmp_tau_syn = get_tau_syn();
     updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_tau_syn, tmp_tau_syn);
     double tmp_R_max = get_R_max();
@@ -786,6 +800,7 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
 
     // if we get here, temporaries contain consistent set of properties
     set_tau_m(tmp_tau_m);
+    set_max_neuron_gid(tmp_max_neuron_gid);
     set_tau_syn(tmp_tau_syn);
     set_R_max(tmp_R_max);
     set_use_variance_tracking(tmp_use_variance_tracking);

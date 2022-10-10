@@ -105,6 +105,7 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp() : ArchivingNode
     const double __resolution = nest::Time::get_resolution().get_ms();  // do not remove, this is necessary for the resolution() function
     pre_run_hook();
     // initial values for parameters
+    P_.max_neuron_gid = 1e3; // as ms
     P_.tau_m = 20; // as ms
     P_.tau_syn = 2; // as ms
     P_.R_max = 100; // as Hz
@@ -151,6 +152,7 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp(const iaf_psc_exp
 
     // copy parameter struct P_
     P_.tau_m = __n.P_.tau_m;
+    P_.max_neuron_gid = __n.P_.max_neuron_gid;
     P_.tau_syn = __n.P_.tau_syn;
     P_.R_max = __n.P_.R_max;
 
@@ -260,7 +262,7 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_weights(nest::Time const &origin, co
             }
 
 #ifdef DEBUG
-            std::cout << "Evolved w_ik for " << it << " -> " << get_node_id() << " = " << V_.localWeights_Wk[it]
+            std::cout << "[[[ " << get_node_id() << " ]]] " << "Evolved w_ik for " << it << " -> " << get_node_id() << " = " << V_.localWeights_Wk[it]
                       << " from y(t) = " << V_.yt_epsp_traces[it]
                       << std::endl << std::flush;
 #endif
@@ -279,18 +281,17 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
 
     double u_t = 0;
     const double resolution = nest::Time::get_resolution().get_ms();  // do not remove, this is necessary for the resolution() function
-    const int n_wta_neurons = 4;
 
     // TODO temporarily switched order - result: seems to match legacy behavior
     // TODO This is done for the recurrent weights
         // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
     for (auto it = V_.spikeEvents.begin(); it != V_.spikeEvents.end();) {
 #ifdef DEBUG
-        std::cout << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
+        std::cout << "[[[ " << get_node_id() << " ]]] "  << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
             << "; origin: " << origin.get_steps() << "; lag: " << lag << "\n" << std::flush;
 #endif
         // update EPSPs if there's an incoming spike, but only for recurrent spikes
-        if (it->deliveryTime + 1 == origin.get_steps() + lag && it->id_ < n_wta_neurons) {
+        if (it->deliveryTime + 1 == origin.get_steps() + lag && it->id_ <= P_.max_neuron_gid) {
             V_.yt_epsp_decay[it->id_] += V_.preSynWeights[it->id_];  // == rdyn*udyn, logic is in the synapse
             V_.yt_epsp_rise[it->id_] += V_.preSynWeights[it->id_];
             it = V_.spikeEvents.erase(it);
@@ -315,7 +316,7 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
         V_.yt_epsp_rise[it] -= V_.yt_epsp_rise[it] * resolution / P_.tau_syn; // evolve traces
 
 #ifdef DEBUG
-        std::cout << "[epsp] evolved EPSP " << V_.yt_epsp_decay[it] << "\t" << V_.yt_epsp_rise[it]
+        std::cout  << "[[[ " << get_node_id() << " ]]] " << "[epsp] evolved EPSP " << V_.yt_epsp_decay[it] << "\t" << V_.yt_epsp_rise[it]
                     << " ==> Y(t) = " << V_.yt_epsp_traces[it]
                     << "\n" << std::flush;
 #endif
@@ -327,11 +328,11 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
         // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
     for (auto it = V_.spikeEvents.begin(); it != V_.spikeEvents.end();) {
 #ifdef DEBUG
-        std::cout << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
+        std::cout  << "[[[ " << get_node_id() << " ]]] " << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
             << "; origin: " << origin.get_steps() << "; lag: " << lag << "\n" << std::flush;
 #endif
         // update EPSPs if there's an incoming spike, but only for input spikes
-        if (it->deliveryTime + 1 == origin.get_steps() + lag && it->id_ > n_wta_neurons) {
+        if (it->deliveryTime + 1 == origin.get_steps() + lag && it->id_ > P_.max_neuron_gid) {
             V_.yt_epsp_decay[it->id_] += V_.preSynWeights[it->id_];  // == rdyn*udyn, logic is in the synapse
             V_.yt_epsp_rise[it->id_] += V_.preSynWeights[it->id_];
             it = V_.spikeEvents.erase(it);
@@ -354,7 +355,7 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
 
     for (long lag = from; lag < to; ++lag) {
 #ifdef DEBUG
-        std::cout << "//////////////\nfrom " << from << " to " << to << ", lag = " << lag
+        std::cout  << "[[[ " << get_node_id() << " ]]] " << "//////////////\nfrom " << from << " to " << to << ", lag = " << lag
                   << " @origin: " << origin.get_steps() << "\n" << std::flush;
 #endif
         //B_.all_spikes_grid_sum_ = get_all_spikes().get_value(lag);
@@ -398,10 +399,13 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
         if (emit_spike) {
             set_spiketime(nest::Time::step(origin.get_steps() + lag + 1));
             nest::SpikeEvent se;
-            se.set_sender(*this);
-            se.set_sender_node_id(this->get_node_id());
+//            se.set_sender(*this);
+//            se.set_sender_node_id(this->get_node_id());
+            se.set_sender_node_id(123456);
 #ifdef DEBUG
-            std::cout << "MODEL set SENDER NODE ID: " << this->get_node_id() << std::endl << std::flush;
+            std::cout << "MODEL set SENDER NODE ID: " << this->get_node_id()
+                        << "   double check: " << se.get_sender_node_id()
+                        << std::endl << std::flush;
 #endif
 
             nest::kernel().event_delivery_manager.send(*this, se, lag);
@@ -447,12 +451,12 @@ void iaf_psc_exp_wta__with_stdp_stp::handle(nest::SpikeEvent &e) // happens befo
 //                       weight * multiplicity );
     long deliveryTime = e.get_rel_delivery_steps(nest::kernel().simulation_manager.get_slice_origin());
 
-#ifdef DEBUG
-    std::cout << e.get_sender_node_id() << std::flush;
-#endif
+//#ifdef DEBUG
+//    std::cout << e.get_sender_node_id() << std::flush;
+//#endif
 
 #ifdef DEBUG
-    std::cout << "\n\t\tweight: " << weight
+    std::cout  << "[[[ " << get_node_id() << " ]]] " << "\n\t\tweight: " << weight
         << "\n\t\t sender id: " << e.get_sender_node_id()
         << "\n\t\t TIME: (event tstamp) " << e.get_stamp().get_steps()
         << "\n\t\t slice_origin(): " << nest::kernel().simulation_manager.get_slice_origin()
