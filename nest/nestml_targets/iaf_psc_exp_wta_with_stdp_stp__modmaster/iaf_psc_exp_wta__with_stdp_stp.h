@@ -41,8 +41,8 @@ namespace nest {
         const Name _r("r");
         const Name _V_m("V_m");
         const Name _time_cnt("time_cnt");
-        const Name _rise_time_kernel__X__all_spikes("rise_time_kernel__X__all_spikes");
-        const Name _decay_time_kernel__X__all_spikes("decay_time_kernel__X__all_spikes");
+        //const Name _rise_time_kernel__X__all_spikes("rise_time_kernel__X__all_spikes");
+        //const Name _decay_time_kernel__X__all_spikes("decay_time_kernel__X__all_spikes");
         const Name _tau_m("tau_m");
         const Name _tau_syn("tau_syn");
         const Name _R_max("R_max");
@@ -271,21 +271,21 @@ public:
         return V_.localWeights_Wk;
     }
 
-    inline double get_rise_time_kernel__X__all_spikes() const {
-        return S_.rise_time_kernel__X__all_spikes;
-    }
+    //inline double get_rise_time_kernel__X__all_spikes() const {
+    //    return S_.rise_time_kernel__X__all_spikes;
+    //}
 
-    inline void set_rise_time_kernel__X__all_spikes(const double __v) {
-        S_.rise_time_kernel__X__all_spikes = __v;
-    }
+    //inline void set_rise_time_kernel__X__all_spikes(const double __v) {
+    //    S_.rise_time_kernel__X__all_spikes = __v;
+    //}
 
-    inline double get_decay_time_kernel__X__all_spikes() const {
-        return S_.decay_time_kernel__X__all_spikes;
-    }
+    //inline double get_decay_time_kernel__X__all_spikes() const {
+    //    return S_.decay_time_kernel__X__all_spikes;
+    //}
 
-    inline void set_decay_time_kernel__X__all_spikes(const double __v) {
-        S_.decay_time_kernel__X__all_spikes = __v;
-    }
+    //inline void set_decay_time_kernel__X__all_spikes(const double __v) {
+    //    S_.decay_time_kernel__X__all_spikes = __v;
+    //}
 
 
     // -------------------------------------------------------------------------
@@ -353,21 +353,21 @@ public:
         V_.__P__V_m__V_m = __v;
     }
 
-    inline double get___P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes() const {
-        return V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
-    }
+    //inline double get___P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes() const {
+    //    return V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
+    //}
 
-    inline void set___P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes(const double __v) {
-        V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = __v;
-    }
+    //inline void set___P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes(const double __v) {
+    //    V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = __v;
+    //}
 
-    inline double get___P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes() const {
-        return V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
-    }
+    //inline double get___P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes() const {
+    //    return V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
+    //}
 
-    inline void set___P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes(const double __v) {
-        V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = __v;
-    }
+    //inline void set___P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes(const double __v) {
+    //    V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = __v;
+    //}
 
 
     inline double get_normalization_sum() const {
@@ -523,8 +523,8 @@ private:
         double V_m;
         //!  TODO temporary
         long time_cnt;
-        double rise_time_kernel__X__all_spikes;
-        double decay_time_kernel__X__all_spikes;
+        //double rise_time_kernel__X__all_spikes;
+        //double decay_time_kernel__X__all_spikes;
 
         State_();
     };
@@ -546,8 +546,8 @@ private:
     struct Variables_ {
         double __h;
         double __P__V_m__V_m;
-        double __P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
-        double __P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
+        //double __P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
+        //double __P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
 
         std::vector<double> yt_epsp_traces = std::vector<double>(
                 1000);  // synaptic activation traces, for each incoming synapse
@@ -607,17 +607,17 @@ private:
     //   Getters/setters for inline expressions
     // -------------------------------------------------------------------------
 
-    inline double get_epsp_decay() const {
-        return get_decay_time_kernel__X__all_spikes();
-    }
+    //inline double get_epsp_decay() const {
+    //    return get_decay_time_kernel__X__all_spikes();
+    //}
 
-    inline double get_epsp_rise() const {
-        return get_rise_time_kernel__X__all_spikes();
-    }
+    //inline double get_epsp_rise() const {
+    //    return get_rise_time_kernel__X__all_spikes();
+    //}
 
-    inline double get_y() const {
-        return ((get_decay_time_kernel__X__all_spikes()) - (get_rise_time_kernel__X__all_spikes())) / 1.0;
-    }
+    //inline double get_y() const {
+    //    return ((get_decay_time_kernel__X__all_spikes()) - (get_rise_time_kernel__X__all_spikes())) / 1.0;
+    //}
 
 
     // -------------------------------------------------------------------------
@@ -714,8 +714,8 @@ inline void iaf_psc_exp_wta__with_stdp_stp::get_status(DictionaryDatum &__d) con
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rate_fraction, get_rate_fraction());
     def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rate, get_rate());
     def<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_time_cnt, get_time_cnt());
-    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes, get_rise_time_kernel__X__all_spikes());
-    def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes, get_decay_time_kernel__X__all_spikes());
+    //def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes, get_rise_time_kernel__X__all_spikes());
+    //def<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes, get_decay_time_kernel__X__all_spikes());
 
     def < std::vector < double >> (__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_epsp_trace, get_epsp_traces());
     def < std::vector < double >> (__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_weights, get_weights());
@@ -756,10 +756,10 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
 
     long tmp_time_cnt = get_time_cnt();
     updateValue<long>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_time_cnt, tmp_time_cnt);
-    double tmp_rise_time_kernel__X__all_spikes = get_rise_time_kernel__X__all_spikes();
-    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes, tmp_rise_time_kernel__X__all_spikes);
-    double tmp_decay_time_kernel__X__all_spikes = get_decay_time_kernel__X__all_spikes();
-    updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes, tmp_decay_time_kernel__X__all_spikes);
+    //double tmp_rise_time_kernel__X__all_spikes = get_rise_time_kernel__X__all_spikes();
+    //updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes, tmp_rise_time_kernel__X__all_spikes);
+    //double tmp_decay_time_kernel__X__all_spikes = get_decay_time_kernel__X__all_spikes();
+    //updateValue<double>(__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes, tmp_decay_time_kernel__X__all_spikes);
 
     std::vector<double> tmp_fixed_spiketimes = get_fixed_spiketimes();
     updateValue < std::vector < double >> (__d, nest::iaf_psc_exp_wta__with_stdp_stp_names::_fixed_spiketimes, tmp_fixed_spiketimes);
@@ -795,8 +795,8 @@ inline void iaf_psc_exp_wta__with_stdp_stp::set_status(const DictionaryDatum &__
     set_eta(tmp_eta);
     set_rate_fraction(tmp_rate_fraction);
     set_time_cnt(tmp_time_cnt);
-    set_rise_time_kernel__X__all_spikes(tmp_rise_time_kernel__X__all_spikes);
-    set_decay_time_kernel__X__all_spikes(tmp_decay_time_kernel__X__all_spikes);
+    //set_rise_time_kernel__X__all_spikes(tmp_rise_time_kernel__X__all_spikes);
+    //set_decay_time_kernel__X__all_spikes(tmp_decay_time_kernel__X__all_spikes);
 
     set_fixed_spiketimes(tmp_fixed_spiketimes);
 
