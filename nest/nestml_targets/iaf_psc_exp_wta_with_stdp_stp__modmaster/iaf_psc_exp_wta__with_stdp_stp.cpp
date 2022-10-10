@@ -279,23 +279,25 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
 
     double u_t = 0;
     const double resolution = nest::Time::get_resolution().get_ms();  // do not remove, this is necessary for the resolution() function
+    const int n_wta_neurons = 4;
 
     // TODO temporarily switched order - result: seems to match legacy behavior
-//        // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
-//    for (auto it = V_.spikeEvents.begin(); it != V_.spikeEvents.end();) {
-//#ifdef DEBUG
-//        std::cout << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
-//            << "; origin: " << origin.get_steps() << "; lag: " << lag << "\n" << std::flush;
-//#endif
-//        // update EPSPs if there's an incoming spike
-//        if (it->deliveryTime + 1 == origin.get_steps() + lag) {
-//            V_.yt_epsp_decay[it->id_] += V_.preSynWeights[it->id_];  // == rdyn*udyn, logic is in the synapse
-//            V_.yt_epsp_rise[it->id_] += V_.preSynWeights[it->id_];
-//            it = V_.spikeEvents.erase(it);
-//        } else {
-//            ++it;
-//        }
-//    }
+    // TODO This is done for the recurrent weights
+        // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
+    for (auto it = V_.spikeEvents.begin(); it != V_.spikeEvents.end();) {
+#ifdef DEBUG
+        std::cout << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
+            << "; origin: " << origin.get_steps() << "; lag: " << lag << "\n" << std::flush;
+#endif
+        // update EPSPs if there's an incoming spike, but only for recurrent spikes
+        if (it->deliveryTime + 1 == origin.get_steps() + lag && it->id_ < n_wta_neurons) {
+            V_.yt_epsp_decay[it->id_] += V_.preSynWeights[it->id_];  // == rdyn*udyn, logic is in the synapse
+            V_.yt_epsp_rise[it->id_] += V_.preSynWeights[it->id_];
+            it = V_.spikeEvents.erase(it);
+        } else {
+            ++it;
+        }
+    }
     // TODO end
 
     for (auto &it: V_.activeSources) // iterated over all presynaptic nodes/sources
@@ -321,14 +323,15 @@ void iaf_psc_exp_wta__with_stdp_stp::evolve_epsps(nest::Time const &origin, cons
     S_.V_m = u_t;  // set V_m to current value of u(t)
 
     // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
-//    msg << "[update] iterating over spike events... \n";
+    // This is done for the input weights
+        // evolve synaptic activations s_ij, i.e., process any spikes and add corresponding scaled delta impulses
     for (auto it = V_.spikeEvents.begin(); it != V_.spikeEvents.end();) {
 #ifdef DEBUG
         std::cout << "[update] spike from source " << it->id_ << ", scheduled @ " << it->deliveryTime
             << "; origin: " << origin.get_steps() << "; lag: " << lag << "\n" << std::flush;
 #endif
-        // update EPSPs if there's an incoming spike
-        if (it->deliveryTime + 1 == origin.get_steps() + lag) {
+        // update EPSPs if there's an incoming spike, but only for input spikes
+        if (it->deliveryTime + 1 == origin.get_steps() + lag && it->id_ > n_wta_neurons) {
             V_.yt_epsp_decay[it->id_] += V_.preSynWeights[it->id_];  // == rdyn*udyn, logic is in the synapse
             V_.yt_epsp_rise[it->id_] += V_.preSynWeights[it->id_];
             it = V_.spikeEvents.erase(it);

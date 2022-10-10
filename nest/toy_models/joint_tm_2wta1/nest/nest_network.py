@@ -195,7 +195,7 @@ class InputGenerator(object):
 
         if self.spike_generators is None:
             # create n spike_generators if none exist yet
-            self.spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': True,
+            self.spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': False,
                                                                                    'origin': t_origin})
 
             # Connect spike generators to target network
@@ -599,11 +599,14 @@ if __name__ == '__main__':
                             t_noise_range=[300.0, 500.0],
                             n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]])
 
-    recorder = utils.Recorder(grid, save_figures=False, show_figures=True, create_plot=False)
+    recorder = utils.Recorder(grid, save_figures=False, show_figures=False, create_plot=False)
     recorder.set(create_plot=False)
     # id_list = recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="Simulation #1") #readout_size=30
     recorder.set(create_plot=True)
-    recorder.run_network(inpgen=inpgen, t_sim=shared_params.sim_time, dt_rec=1, title="Test #1", train=True, order_neurons=False)
+    recorder.run_network(inpgen=inpgen,
+                         t_sim=shared_params.sim_time,
+                         # t_sim=20.,
+                         dt_rec=1, title="Test #1", train=True, order_neurons=False)
     recorder.set(plot_history=True)
     exit()
     recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="History", id_list=id_list, order_neurons=True)

@@ -1116,7 +1116,7 @@ class SEMLiquid(object):
 
         fig.tight_layout()
         fig.savefig('voltage_trace.pdf')
-        plt.show()
+        # plt.show()
 
     def update_parameters_test(self, step, nsteps):
         pass
@@ -1518,6 +1518,7 @@ def sem_liquid_pattern1(seed=None, *p):
                              pattern_sequences=[[0],[0]],
                              test_pattern_sequences=[[0],[0]],
                              seed=seed,
+                             # seed=99476,
                              size=(1,2),
                              pConn=1.0,
                              tNoiseRange=[300e-3,500e-3],
@@ -1535,7 +1536,7 @@ def sem_liquid_pattern1(seed=None, *p):
     liquid.ext = 'pdf'
 
     # shared_params.sim_time = strain * 1000
-    strain = int(shared_params.sim_time / 1000)
+    strain = max(1, int(shared_params.sim_time / 1000))
 
     num_train_periods = 1
     num_test_periods = 10

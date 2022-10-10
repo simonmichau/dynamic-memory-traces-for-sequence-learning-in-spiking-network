@@ -35,25 +35,26 @@ for idx, n in enumerate(neuron_ids['klampfl']):
 # Output spikes
 for idx, n in enumerate(neuron_ids['nest']):
     times = data_nest['spikes'][n]
-    axes[1].plot(times, [idx] * len(times), 'v', ms=12, color=c_nest)
+    axes[1].plot(times, [idx] * len(times), 'v', ms=12, color=c_nest, alpha=0.9)
 for idx, n in enumerate(neuron_ids['klampfl']):
     indices = np.where(data_klampfl['spikes'][n][1])[0]
     times = data_klampfl['spikes'][n][0][indices]
-    axes[1].plot(times, [idx] * len(times), 'o', ms=12, color=c_klampfl)
+    axes[1].plot(times, [idx] * len(times), 'o', ms=12, color=c_klampfl, alpha=0.5)
 
 # Vms
 for idx, (n, n2) in enumerate(zip(neuron_ids['nest'], neuron_ids['klampfl'])):
-    axes[2].plot(data_nest['Vms'][n][0], data_nest['Vms'][n][1], color=c_nest, ls=ls[idx], lw=lw1)
-    axes[2].plot(data_klampfl['Vms'][n2][0], data_klampfl['Vms'][n2][1], color=c_klampfl, ls=ls[idx], lw=lw1)
-    print(f"Vm diff: {mean_squared_error(data_nest['Vms'][n][1], data_klampfl['Vms'][n2][1][:-1])}")
+    axes[2].plot(data_nest['Vms'][n][0], data_nest['Vms'][n][1], marker='o', color=c_nest, ls=ls[idx], lw=lw1)
+    axes[2].plot(data_klampfl['Vms'][n2][0], data_klampfl['Vms'][n2][1], marker='o', color=c_klampfl, ls=ls[idx], lw=lw1)
+    # print(f"Vm diff: {mean_squared_error(data_nest['Vms'][n][1], data_klampfl['Vms'][n2][1][:-1])}")
 
 # Input weights
 for neuron_idx, (n, n2) in enumerate(zip(neuron_ids['nest'], neuron_ids['klampfl'])):
     for idx, (n_i, n_i2) in enumerate(zip(input_ids['nest'], input_ids['klampfl'])):
-        axes[3].plot(data_nest['inp_weights'][n][n_i][0], data_nest['inp_weights'][n][n_i][1], color=c_nest, ls=ls[idx], lw=lw1)
+        axes[3].plot(data_nest['inp_weights'][n][n_i][0], data_nest['inp_weights'][n][n_i][1],
+                     marker='o', color=c_nest, ls=ls[idx], lw=lw1)
 
     kw = data_klampfl['inp_weights'][1][:, neuron_idx, 0]
-    axes[3].plot(data_klampfl['inp_weights'][0], kw, color=c_klampfl, ls=ls[neuron_idx], lw=lw1)
+    axes[3].plot(data_klampfl['inp_weights'][0], kw, marker='o',  color=c_klampfl, ls=ls[neuron_idx], lw=lw1)
 
 # Recurrent weights
 # for neuron_idx, (n, n2) in enumerate(zip(neuron_ids['nest'], neuron_ids['klampfl'])):
@@ -74,9 +75,11 @@ for idx, n in enumerate(neuron_ids['klampfl']):
 axes[0].set_title('Input spikes')
 axes[1].set_title('Output spikes')
 axes[2].set_title('Voltage trace')
+# axes[2].set_ylim([-0.2, 0.1])
+
 axes[3].set_title('Input weights')
 axes[4].set_title('Recurrent weights')
 
-# plt.xlim([600, 800])
+plt.xlim(shared_params.xlim)
 plt.tight_layout()
 plt.show()
