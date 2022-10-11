@@ -615,7 +615,7 @@ if __name__ == '__main__':
     grid = Network(grid_shape=(1, shared_params.n_wta), k_min=shared_params.n_neurons, k_max=shared_params.n_neurons,
                    n_inputs=shared_params.n_inp_channels)
 
-    grid.get_node_collections().max_neuron_gid = max(grid.get_node_collections().global_id)
+    grid.get_node_collections().max_neuron_gid = max(grid.get_node_collections().global_id)  # critical
 
     print(grid.get_node_collections().rate_fraction)
     inpgen = InputGenerator(grid, r_noise=5., r_input=1e-12, r_noise_pattern=5., use_noise=False,
