@@ -55,10 +55,10 @@ namespace nest {
     void RecordablesMap<iaf_psc_exp_wta__with_stdp_stp>::create() {
         // add state variables to recordables map
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_V_m, &iaf_psc_exp_wta__with_stdp_stp::get_V_m);
-        insert_(iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes,
-                &iaf_psc_exp_wta__with_stdp_stp::get_rise_time_kernel__X__all_spikes);
-        insert_(iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes,
-                &iaf_psc_exp_wta__with_stdp_stp::get_decay_time_kernel__X__all_spikes);
+        //insert_(iaf_psc_exp_wta__with_stdp_stp_names::_rise_time_kernel__X__all_spikes,
+        //        &iaf_psc_exp_wta__with_stdp_stp::get_rise_time_kernel__X__all_spikes);
+        //insert_(iaf_psc_exp_wta__with_stdp_stp_names::_decay_time_kernel__X__all_spikes,
+        //        &iaf_psc_exp_wta__with_stdp_stp::get_decay_time_kernel__X__all_spikes);
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_normalization_sum,
                 &iaf_psc_exp_wta__with_stdp_stp::get_normalization_sum);
         insert_(iaf_psc_exp_wta__with_stdp_stp_names::_rate_fraction,
@@ -113,8 +113,8 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp() : ArchivingNode
     S_.r = 0; // as integer
     S_.V_m = 0; // as mV
     S_.time_cnt = 0; // as integer
-    S_.rise_time_kernel__X__all_spikes = 0; // as real
-    S_.decay_time_kernel__X__all_spikes = 0; // as real
+    //S_.rise_time_kernel__X__all_spikes = 0; // as real
+    //S_.decay_time_kernel__X__all_spikes = 0; // as real
 
     V_.rate_fraction = 0.0;
     V_.rate = 0.0;
@@ -160,16 +160,16 @@ iaf_psc_exp_wta__with_stdp_stp::iaf_psc_exp_wta__with_stdp_stp(const iaf_psc_exp
     S_.r = __n.S_.r;
     S_.V_m = __n.S_.V_m;
     S_.time_cnt = __n.S_.time_cnt;
-    S_.rise_time_kernel__X__all_spikes = __n.S_.rise_time_kernel__X__all_spikes;
-    S_.decay_time_kernel__X__all_spikes = __n.S_.decay_time_kernel__X__all_spikes;
+    //S_.rise_time_kernel__X__all_spikes = __n.S_.rise_time_kernel__X__all_spikes;
+    //S_.decay_time_kernel__X__all_spikes = __n.S_.decay_time_kernel__X__all_spikes;
 
 
     // copy internals V_
     V_.normalization_max = __n.V_.normalization_max;
     V_.__h = __n.V_.__h;
     V_.__P__V_m__V_m = __n.V_.__P__V_m__V_m;
-    V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = __n.V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
-    V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = __n.V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
+    //V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = __n.V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes;
+    //V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = __n.V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes;
     V_.Q = __n.V_.Q;
     V_.S = __n.V_.S;
     V_.eta = __n.V_.eta;
@@ -205,18 +205,18 @@ void iaf_psc_exp_wta__with_stdp_stp::recompute_internal_variables(bool exclude_t
 
     if (exclude_timestep) {
         V_.__P__V_m__V_m = 1; // as real
-        V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = std::exp(
-                (-(V_.__h)) / P_.tau_syn); // as real
-        V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = std::exp(
-                (-(V_.__h)) / P_.tau_m); // as real
+        //V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = std::exp(
+        //        (-(V_.__h)) / P_.tau_syn); // as real
+        //V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = std::exp(
+        //        (-(V_.__h)) / P_.tau_m); // as real
     } else {
         // internals V_
         V_.__h = __resolution; // as ms
         V_.__P__V_m__V_m = 1; // as real
-        V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = std::exp(
-                (-(V_.__h)) / P_.tau_syn); // as real
-        V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = std::exp(
-                (-(V_.__h)) / P_.tau_m); // as real
+        //V_.__P__rise_time_kernel__X__all_spikes__rise_time_kernel__X__all_spikes = std::exp(
+        //        (-(V_.__h)) / P_.tau_syn); // as real
+        //V_.__P__decay_time_kernel__X__all_spikes__decay_time_kernel__X__all_spikes = std::exp(
+        //        (-(V_.__h)) / P_.tau_m); // as real
     }
 }
 
