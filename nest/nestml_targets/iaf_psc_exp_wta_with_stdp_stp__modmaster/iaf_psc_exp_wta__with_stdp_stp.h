@@ -385,9 +385,11 @@ public:
         */
         double norm_sum = 0;
         for (auto &it: V_.presyn_u_t) {
-            norm_sum += std::exp(it - V_.normalization_max_prev);  // add u(t) of presyn nodes
+//            norm_sum += std::exp(it - V_.normalization_max_prev);  // add u(t) of presyn nodes
+            norm_sum += std::exp(it);  // add u(t) of presyn nodes
         }
-        norm_sum += std::exp(get_V_m() - V_.normalization_max_prev);  // add u(t) of this neuron
+//        norm_sum += std::exp(get_V_m() - V_.normalization_max_prev);  // add u(t) of this neuron
+        norm_sum += std::exp(get_V_m());  // add u(t) of this neuron
         return norm_sum;
     }
 

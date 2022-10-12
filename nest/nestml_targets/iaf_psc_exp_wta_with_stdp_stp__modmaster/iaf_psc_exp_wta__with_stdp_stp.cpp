@@ -360,14 +360,17 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
 #endif
         //B_.all_spikes_grid_sum_ = get_all_spikes().get_value(lag);
 //        std::cout << "all_spikes_grid_sum_ = " << B_.all_spikes_grid_sum_ << "\n" << std::flush;
-
-        evolve_epsps(origin, lag);  // modifies V_m
-
         S_.time_cnt += 1;
 //      S_.V_m = get_y() * 1.0;
         //  std::cout << S_.V_m << std::endl;
 
-        V_.rate_fraction = std::exp(get_V_m() - V_.normalization_max) / get_normalization_sum();
+//        V_.rate_fraction = std::exp(get_V_m() - V_.normalization_max) / get_normalization_sum();
+        V_.rate_fraction = std::exp(get_V_m()) / get_normalization_sum();
+
+//        std::cout << "[rate fraction ] " << get_node_id()
+//            << "  --->>>  " << V_.rate_fraction
+//            << std::endl << std::flush;
+
         if (V_.rate_fraction > 1.)
         {
             V_.rate = 0.;
@@ -376,6 +379,8 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
         {
             V_.rate = P_.R_max * V_.rate_fraction;
         }
+
+        evolve_epsps(origin, lag);  // modifies V_m
 
         double p = __resolution * V_.rate / 1000;
 
@@ -415,8 +420,11 @@ void iaf_psc_exp_wta__with_stdp_stp::update(nest::Time const &origin, const long
 
         // voltage logging
         B_.logger_.record_data(origin.get_steps() + lag);
-
         new_voltage[lag] = S_.V_m;
+
+//        std::cout << "[setting voltage] " << get_node_id()
+//            << "  --->>>  " << S_.V_m
+//            << std::endl << std::flush;
     }
 
     // Send rate-neuron-event
@@ -492,8 +500,9 @@ void iaf_psc_exp_wta__with_stdp_stp::handle(nest::InstantaneousRateConnectionEve
         V_.normalization_max = std::max(u_i, V_.normalization_max);
 
 //        B_.instant_rates_ex_[i] += weight * e.get_coeffvalue(it);
-//        std::cout << "Received InstantaneousRateConnectionEvent - u(t) of presyn neuron:"
-//            << e.get_coeffvalue(it) << std::endl << std::flush;
+//        std::cout << "[neuron: " <<  get_node_id() << "] Received RateConnectionEvent - u(t) of presyn neuron:"
+//            << u_i << std::endl << std::flush;
+//            << u_i << std::endl << std::flush;
     }
 }
 

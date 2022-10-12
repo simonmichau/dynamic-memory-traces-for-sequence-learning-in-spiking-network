@@ -1,13 +1,15 @@
 """
-
+Things to consider:
+    1. connection density: 1 or distance-based?
+        a. in legacy code, connections are done between WTA circuits, not individual neurons
+    2. randomization of STP params
+    3. randomization of weights params
 """
-
 
 import matplotlib
 matplotlib.use('TkAgg')
 
 from matplotlib import pyplot as plt
-# import random
 import math
 from typing import Optional
 
@@ -23,10 +25,12 @@ import nest_utils as utils
 # from nest_utils import *
 # from pynestml.frontend.pynestml_frontend import *
 
-
+# rng_seed = 2
+rng_seed = 3  # works???
+# rng_seed = np.random.randint(0, 1000, 1)[0]
 nest.ResetKernel()
-nest.SetKernelStatus({"rng_seed": 1337})
-np.random.seed(1337)
+nest.SetKernelStatus({"rng_seed": rng_seed})
+np.random.seed(rng_seed)
 
 
 class WTACircuit:
@@ -97,6 +101,7 @@ class InputGenerator(object):
         self.r_input = kwds.get('r_input', 3)
         # Number of patterns
         self.n_patterns = kwds.get('n_patterns', 3)
+
         # Pattern sequences (contains lists of pattern sequences; their presentation order is determined [elsewhere])
         self.pattern_sequences = kwds.get('pattern_sequences', [[0, 1], [2]])
         # Pattern mode (can be either 'random_independent' or 'random_iterate')
@@ -198,23 +203,23 @@ class InputGenerator(object):
             self.spike_generators = nest.Create('spike_generator', self.n, params={'allow_offgrid_times': False,
                                                                                    'origin': t_origin})
 
-            # Connect spike generators to target network
-            conn_dict = {'rule': 'pairwise_bernoulli',
-                         'allow_autapses': False,
-                         'p': 1.0}
-            syn_dict = {
-                "synapse_model": _SYNAPSE_MODEL_NAME,
-                'delay': 1.,
-                'U': 0.5,
-                'u': 0.5,
-                'use_stp': 0  # TODO for some reason, input synapses are not dynamic.
-            }
+            # # Connect spike generators to target network
+            # conn_dict = {'rule': 'pairwise_bernoulli',
+            #              'allow_autapses': False,
+            #              'p': 1.0}
+            # syn_dict = {
+            #     "synapse_model": _SYNAPSE_MODEL_NAME,
+            #     'delay': 1.,
+            #     'U': 0.5,
+            #     'u': 0.5,
+            #     'use_stp': 0  # TODO for some reason, input synapses are not dynamic.
+            # }
             #nest.Connect(self.spike_generators, self.target_network.get_node_collections(), conn_dict,
             #             syn_dict)
             nest.Connect(self.spike_generators, self.parrots, 'one_to_one')
 
             # Randomize connection weights
-            utils.randomize_outgoing_connections(self.spike_generators)
+            utils.randomize_outgoing_connections(self.spike_generators)  # TODO Is this needed?
 
         noise_rate_times = []
         noise_rate_values = []
@@ -322,12 +327,13 @@ class Network(object):
         self.n_inputs = kwds.get('n_inputs', 50)
         # parameter lambda of exponential distance distribution
         self.lam = kwds.get('lam', 0.088)
+        self.n_conn = 1000
         # List containing all WTA circuits
         self.circuits = []
         # NodeCollection containing all neurons of the grid
         self.neuron_collection = None
         # ADMINISTRATIVE VARIABLES
-        self.save_figures = kwds.get('save_figures', False)
+        self.save_figures = kwds.get('save_figures', True)
         self.show_figures = kwds.get('show_figures', True)
         #
         self.use_stp = True
@@ -395,7 +401,7 @@ class Network(object):
             for n in range(self.n):
                 K = np.random.randint(self.k_min, self.k_max + 1)
                 nc = nest.Create(_NEURON_MODEL_NAME, K,
-                                 {'tau_m': 20.0, 'use_variance_tracking': int(shared_params.use_variance_tracking),
+                                 {'tau_m': 20.0, 'use_variance_tracking': 1.,
                                   'use_stdp': int(self.use_stdp), 'rate_fraction': 1./K})
                 circuit_list.append(WTACircuit(nc, (n, m)))
                 print(f"Position and size of WTA circuit: ({n}, {m}) - {K}")
@@ -413,31 +419,64 @@ class Network(object):
             'delay': 1.,
             'use_stp': int(self.use_stp)
         }
-
-        # Iterate over each WTACircuit object and establish connections to every other population with p(d)
+        # Create distance matrix
+        self.distances = np.zeros((len(self.circuits), len(self.circuits)))
         for i in range(len(self.circuits)):
             self.circuits[i].get_pos()
             for j in range(len(self.circuits)):
-                if i != j:
-                    d = math.sqrt((self.circuits[i].get_x()-self.circuits[j].get_x())**2
-                                  + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
-                    conn_dict['p'] = self.lam * math.exp(-self.lam * d)  # TODO try all-to-all conn @zbarni
-                    # conn_dict['p'] = 1
-                    conns = nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(),
+                self.distances[i][j] = math.sqrt((self.circuits[i].get_x() - self.circuits[j].get_x()) ** 2
+                                                 + (self.circuits[i].get_y() - self.circuits[j].get_y()) ** 2)
+
+        # Iterate over each WTACircuit object and establish connections to every other population with p(d)
+        eps = 1
+        count = 0  # circuit-to-circuit connections
+        while count < self.n_conn:
+            d = np.random.exponential(scale=1.0 / self.lam)
+            I, J = np.where((self.distances <= d + eps) & (self.distances > d - eps))
+            if len(I) > 0:
+                i = np.random.randint(len(I))
+                if I[i] != J[i]:
+                    conns = nest.Connect(self.circuits[I[i]].get_node_collection(),
+                                         self.circuits[J[i]].get_node_collection(),
                                          conn_dict, syn_dict, return_synapsecollection=True)
 
                     U_mean = 0.5
                     tau_d_mean = 110.
                     tau_f_mean = 5.
 
-                    Us = U_mean + U_mean/2 * np.random.randn(len(conns))
-                    tau_ds = tau_d_mean + tau_d_mean/2 * np.random.randn(len(conns))
-                    tau_fs = tau_f_mean + tau_f_mean/2 * np.random.randn(len(conns))
+                    Us = U_mean + U_mean / 2 * np.random.randn(len(conns))
+                    tau_ds = tau_d_mean + tau_d_mean / 2 * np.random.randn(len(conns))
+                    tau_fs = tau_f_mean + tau_f_mean / 2 * np.random.randn(len(conns))
                     conns.set({
                         'U': np.maximum(Us, 0),
                         'tau_d': np.maximum(tau_ds, 1.),
                         'tau_f': np.maximum(tau_fs, 1.),
                     })
+                    count += 1
+        print(f"Created {count} circuit-to-circuit connections.")
+        # for i in range(len(self.circuits)):
+        #     self.circuits[i].get_pos()
+        #     for j in range(len(self.circuits)):
+        #         if i != j:
+        #             d = math.sqrt((self.circuits[i].get_x()-self.circuits[j].get_x())**2
+        #                           + (self.circuits[i].get_y()-self.circuits[j].get_y())**2)
+        #             conn_dict['p'] = self.lam * math.exp(-self.lam * d)  # TODO try all-to-all conn @zbarni
+        #             # conn_dict['p'] = 1
+        #             conns = nest.Connect(self.circuits[i].get_node_collection(), self.circuits[j].get_node_collection(),
+        #                                  conn_dict, syn_dict, return_synapsecollection=True)
+        #
+        #             U_mean = 0.5
+        #             tau_d_mean = 110.
+        #             tau_f_mean = 5.
+        #
+        #             Us = U_mean + U_mean/2 * np.random.randn(len(conns))
+        #             tau_ds = tau_d_mean + tau_d_mean/2 * np.random.randn(len(conns))
+        #             tau_fs = tau_f_mean + tau_f_mean/2 * np.random.randn(len(conns))
+        #             conns.set({
+        #                 'U': np.maximum(Us, 0),
+        #                 'tau_d': np.maximum(tau_ds, 1.),
+        #                 'tau_f': np.maximum(tau_fs, 1.),
+        #             })
 
         # Randomize weights of each WTA circuit
         for i in range(len(self.circuits)):
@@ -590,26 +629,35 @@ if __name__ == '__main__':
     nest.SetKernelStatus({'resolution': 1.,
                           'use_compressed_spikes': False,
                           "local_num_threads": 6,
+                          'rng_seed': rng_seed
                           })  # no touch!
 
     utils.SYNAPSE_MODEL_NAME = _SYNAPSE_MODEL_NAME
     # TOY EXAMPLE
     grid = Network(grid_shape=(10, 5), k_min=2, k_max=10, n_inputs=100)
+    # grid = Network(grid_shape=(1, 3), k_min=2, k_max=2, n_inputs=10)
 
     grid.get_node_collections().max_neuron_gid = max(grid.get_node_collections().global_id)  # critical
     print(grid.get_node_collections().rate_fraction)
-    inpgen = InputGenerator(grid, r_noise=5, r_input=3, r_noise_pattern=4, use_noise=True, t_noise_range=[300.0, 500.0],
+    # inpgen = InputGenerator(grid, r_noise=5, r_input=3, r_noise_pattern=4, use_noise=True, t_noise_range=[300.0, 500.0],
+    inpgen = InputGenerator(grid, r_noise=5, r_input=5, r_noise_pattern=2, use_noise=True, t_noise_range=[300.0, 500.0],
                             n_patterns=1, t_pattern=[300.], pattern_sequences=[[0]])
 
     recorder = utils.Recorder(grid, save_figures=False, show_figures=True, create_plot=False)
-    recorder.set(create_plot=False)
+    # recorder.set(create_plot=False)
     # id_list = recorder.run_network(inpgen=inpgen, t_sim=1, dt_rec=None, title="Simulation #1") #readout_size=30
+
+    recorder.set(create_plot=False)
     # recorder.set(create_plot=True)
-    recorder.set(create_plot=True)
-    recorder.run_network(inpgen=inpgen, t_sim=60000, dt_rec=None, title="Test #1", train=True, order_neurons=False)
+    # recorder.run_network(inpgen=inpgen, t_sim=1000, dt_rec=None, title="Test #1", train=True, order_neurons=True)
+    recorder.run_network(inpgen=inpgen, t_sim=100000, dt_rec=None, title="Test #1", train=True, order_neurons=False)
+    recorder.verify_rate_fractions()
+    recorder.reset_recorders(inpgen)
+
     # recorder.set(plot_history=True)
     recorder.set(create_plot=True)
-    # recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="History", id_list=id_list, order_neurons=True)
-    recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="History", order_neurons=False)
+    # recorder.run_network(inpgen=inpgen, t_sim=10000, dt_rec=None, title="History", order_neurons=True)
+    # recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=1000, title="History", order_neurons=True)
+    recorder.run_network(inpgen=inpgen, t_sim=3000, dt_rec=None, title="History", order_neurons=True)
 
-    print(nest.GetKernelStatus('rng_seed'))
+    print(nest.GetKernelStatus('rng_seed'), rng_seed)
