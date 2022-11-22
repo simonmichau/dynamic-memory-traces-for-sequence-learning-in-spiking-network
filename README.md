@@ -1,4 +1,4 @@
-# Info: This is the development version of the project. For a cleaned up and more usable version check out the [sequence-learning](https://github.com/simonmichau/sequence-learning) repository.
+### Info: This is the development version of the project. For a cleaned up and more usable version check out the [sequence-learning](https://github.com/simonmichau/sequence-learning) repository.
 # Dynamic memory traces for sequence learning in spiking networks
 Repo of the bachelor thesis 'Dynamic memory traces for sequence learning in spiking networks'
 
